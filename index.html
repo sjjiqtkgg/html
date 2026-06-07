@@ -168,27 +168,53 @@
             if (!appData.tabs.find(t => t.id === appData.activeTabId) && appData.tabs.length) appData.activeTabId = appData.tabs[0].id;
         }
         function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); }
+
+        // 修复后的同步函数：直接修改原分类对象的 links 数组，以及调整分类顺序
         function syncDataFromDOM() {
             const activeTab = appData.tabs.find(t => t.id === appData.activeTabId);
             if (!activeTab) return;
-            const linkMap = new Map(), catMap = new Map();
-            activeTab.categories.forEach(cat => { catMap.set(cat.id, cat); cat.links.forEach(link => { linkMap.set(link.id, link); }); });
-            const newCategories = [];
+
+            // 同步链接：对每个分类，根据 DOM 顺序重新设置 links
             document.querySelectorAll('.category-block').forEach(catBlock => {
                 const catId = catBlock.dataset.catId;
-                let origCat = catMap.get(catId);
-                if (!origCat) return;
+                const cat = activeTab.categories.find(c => c.id === catId);
+                if (!cat) return;
                 const newLinks = [];
                 catBlock.querySelectorAll('.link-card').forEach(linkCard => {
                     const linkId = linkCard.dataset.linkId;
-                    let origLink = linkMap.get(linkId); 
-                    if (origLink) newLinks.push(origLink);
+                    let foundLink = null;
+                    // 从当前 activeTab 的所有分类中查找该链接（支持跨分类拖拽）
+                    for (let c of activeTab.categories) {
+                        foundLink = c.links.find(l => l.id === linkId);
+                        if (foundLink) break;
+                    }
+                    if (foundLink) newLinks.push(foundLink);
                 });
-                newCategories.push({ ...origCat, links: newLinks });
+                // 直接更新原数组，保留对象引用
+                cat.links.length = 0;
+                newLinks.forEach(l => cat.links.push(l));
             });
-            activeTab.categories = newCategories;
+
+            // 同步分类顺序：根据 DOM 重新排列 activeTab.categories
+            const newCatOrder = [];
+            document.querySelectorAll('.category-block').forEach(catBlock => {
+                const catId = catBlock.dataset.catId;
+                const cat = activeTab.categories.find(c => c.id === catId);
+                if (cat) newCatOrder.push(cat);
+            });
+            // 原位替换数组内容
+            activeTab.categories.length = 0;
+            newCatOrder.forEach(c => activeTab.categories.push(c));
+
             saveData();
+
+            // 拖拽结束后，确保所有“添加链接”按钮都被移到最后
+            document.querySelectorAll('.links-row').forEach(row => {
+                const addBtn = row.querySelector('.add-link-btn');
+                if (addBtn) row.appendChild(addBtn);
+            });
         }
+
         function render() { renderTabs(); renderAllCategories(); }
         function renderTabs() {
             const tabBar = document.getElementById('tabBar'); tabBar.innerHTML = '';
@@ -236,52 +262,24 @@
                 const nameSpan = document.createElement('span'); nameSpan.textContent = cat.name; nameDiv.appendChild(nameSpan);
                 if (editMode) {
                     const btnGroup = document.createElement('div'); btnGroup.className = 'category-edit-btns';
-                    const renameBtn = document.createElement('button'); renameBtn.textContent = '✎'; 
-                    renameBtn.addEventListener('click', (e) => { 
-                        e.stopPropagation(); 
-                        openModal('重命名分类', cat.name, (newName) => { 
-                            if (newName && newName.trim()) { 
-                                const currentTab = appData.tabs.find(t => t.id === appData.activeTabId);
-                                const latestCat = currentTab?.categories.find(c => c.id === cat.id);
-                                if(latestCat) latestCat.name = newName.trim(); 
-                                render(); saveData(); 
-                            } 
-                        }); 
-                    });
-                    const delBtn = document.createElement('button'); delBtn.textContent = '✖'; 
-                    delBtn.addEventListener('click', (e) => { 
-                        e.stopPropagation(); 
-                        if (confirm(`删除分类"${cat.name}"及其所有链接？`)) { 
-                            const currentTab = appData.tabs.find(t => t.id === appData.activeTabId);
-                            if(currentTab) {
-                                const idx = currentTab.categories.findIndex(c => c.id === cat.id); 
-                                if(idx !== -1) currentTab.categories.splice(idx, 1); 
-                            }
-                            render(); saveData(); 
-                        } 
-                    });
-                    btnGroup.appendChild(renameBtn); btnGroup.appendChild(delBtn);
-                    nameDiv.appendChild(btnGroup);
+                    const renameBtn = document.createElement('button'); renameBtn.textContent = '✎'; renameBtn.addEventListener('click', (e) => { e.stopPropagation(); openModal('重命名分类', cat.name, (newName) => { if (newName && newName.trim()) { cat.name = newName.trim(); render(); saveData(); } }); });
+                    const delBtn = document.createElement('button'); delBtn.textContent = '✖'; delBtn.addEventListener('click', (e) => { e.stopPropagation(); if (confirm(`删除分类"${cat.name}"及其所有链接？`)) { const idx = activeTab.categories.findIndex(c => c.id === cat.id); activeTab.categories.splice(idx, 1); render(); saveData(); } });
+                    btnGroup.appendChild(renameBtn); btnGroup.appendChild(delBtn); nameDiv.appendChild(btnGroup);
                 }
                 block.appendChild(nameDiv);
                 const linksRow = document.createElement('div'); linksRow.className = 'links-row'; linksRow.dataset.catId = cat.id;
                 cat.links.forEach(link => { linksRow.appendChild(createLinkCard(cat, link)); });
                 if (editMode) {
                     const addLinkBtn = document.createElement('button'); addLinkBtn.textContent = '+ 添加链接'; addLinkBtn.className = 'add-link-btn';
+                    // 局部插入，不再全局渲染
                     addLinkBtn.addEventListener('click', () => {
                         openLinkModal(null, (newName, newUrl) => {
                             if (!newUrl) return;
                             if (!/^https?:\/\//i.test(newUrl)) newUrl = 'https://' + newUrl;
                             let title = newName?.trim() || fetchTitleFromUrl(newUrl);
-                            
-                            // 🌟 修复：动态获取最新数据引用，防止闭包过期导致数据丢失
-                            const currentTab = appData.tabs.find(t => t.id === appData.activeTabId);
-                            const latestCat = currentTab.categories.find(c => c.id === cat.id);
-                            
                             const newLink = { id: uid(), name: title, url: newUrl };
-                            latestCat.links.push(newLink);
-                            
-                            const newCard = createLinkCard(latestCat, newLink);
+                            cat.links.push(newLink);
+                            const newCard = createLinkCard(cat, newLink);
                             linksRow.insertBefore(newCard, addLinkBtn);
                             saveData();
                         }, true);
@@ -297,24 +295,7 @@
                 const categorySortable = new Sortable(container, { animation: 150, handle: '.drag-handle', ghostClass: 'category-ghost', draggable: '.category-block', filter: '.add-category-btn', onEnd: () => { syncDataFromDOM(); } });
                 window.sortableInstances.push(categorySortable);
                 document.querySelectorAll('.links-row').forEach(row => {
-                    const linkSortable = new Sortable(row, {
-                        group: 'shared-links',
-                        animation: 150,
-                        ghostClass: 'sortable-ghost',
-                        draggable: '.link-card',
-                        filter: '.add-link-btn',
-                        onEnd: (evt) => {
-                            // 🌟 修复：强制保证 "+ 添加链接" 按钮永远在最后面
-                            const addBtn = row.querySelector('.add-link-btn');
-                            if (addBtn && evt.item !== addBtn) {
-                                // 如果拖拽的元素跑到了按钮后面，就把它强制插到按钮前面
-                                if (addBtn.compareDocumentPosition(evt.item) & Node.DOCUMENT_POSITION_FOLLOWING) {
-                                    row.insertBefore(evt.item, addBtn);
-                                }
-                            }
-                            syncDataFromDOM(); 
-                        }
-                    });
+                    const linkSortable = new Sortable(row, { group: 'shared-links', animation: 150, ghostClass: 'sortable-ghost', draggable: '.link-card', filter: '.add-link-btn', onEnd: () => { syncDataFromDOM(); } });
                     window.sortableInstances.push(linkSortable);
                 });
             }
@@ -326,37 +307,8 @@
             card.addEventListener('click', (e) => { if (editMode) return; if (link.url && link.url !== '#') window.open(link.url, '_blank'); else alert('该链接尚未配置有效网址，请编辑后使用。'); });
             if (editMode) {
                 const actions = document.createElement('div'); actions.className = 'link-card-actions';
-                const editBtn = document.createElement('button'); editBtn.textContent = '✎'; 
-                editBtn.addEventListener('click', (e) => { 
-                    e.stopPropagation(); 
-                    openLinkModal(link, (newName, newUrl) => { 
-                        // 🌟 修复：动态获取最新引用
-                        const currentTab = appData.tabs.find(t => t.id === appData.activeTabId);
-                        const latestCat = currentTab?.categories.find(c => c.id === cat.id);
-                        const latestLink = latestCat?.links.find(l => l.id === link.id);
-                        if (latestLink) {
-                            if (newName) latestLink.name = newName; 
-                            if (newUrl) latestLink.url = newUrl; 
-                        }
-                        render(); 
-                        saveData(); 
-                    }); 
-                });
-                const delBtn = document.createElement('button'); delBtn.textContent = '✖'; 
-                delBtn.addEventListener('click', (e) => { 
-                    e.stopPropagation(); 
-                    if (confirm(`删除链接"${link.name}"？`)) { 
-                        // 🌟 修复：动态获取最新引用
-                        const currentTab = appData.tabs.find(t => t.id === appData.activeTabId);
-                        const latestCat = currentTab?.categories.find(c => c.id === cat.id);
-                        if (latestCat) {
-                            const idx = latestCat.links.findIndex(l => l.id === link.id); 
-                            if (idx !== -1) latestCat.links.splice(idx, 1); 
-                        }
-                        render(); 
-                        saveData(); 
-                    } 
-                });
+                const editBtn = document.createElement('button'); editBtn.textContent = '✎'; editBtn.addEventListener('click', (e) => { e.stopPropagation(); openLinkModal(link, (newName, newUrl) => { if (newName) link.name = newName; if (newUrl) link.url = newUrl; render(); saveData(); }); });
+                const delBtn = document.createElement('button'); delBtn.textContent = '✖'; delBtn.addEventListener('click', (e) => { e.stopPropagation(); if (confirm(`删除链接"${link.name}"？`)) { const idx = cat.links.findIndex(l => l.id === link.id); cat.links.splice(idx, 1); render(); saveData(); } });
                 actions.appendChild(editBtn); actions.appendChild(delBtn); card.appendChild(actions);
             }
             return card;

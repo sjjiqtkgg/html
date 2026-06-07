@@ -115,14 +115,96 @@
     </div>
     <script>
         function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+        // ── 本地名称映射（快速同步fallback） ──────────────────────
         function fetchTitleFromUrl(url) {
             try {
-                const host = new URL(url).hostname.replace(/^www\./i, '').replace(/\.(com|net|org|cn|io|ai|app|dev)$/i, '');
-                const specialNames = { "chatgpt": "ChatGPT", "openai": "OpenAI", "github": "GitHub", "deepseek": "DeepSeek", "claude": "Claude", "anthropic": "Claude", "gemini": "Gemini", "google": "Google", "youtube": "YouTube", "twitter": "Twitter", "x": "X", "spotify": "Spotify", "bilibili": "Bilibili", "weibo": "微博", "qq": "QQ", "baidu": "百度", "aliyun": "阿里云", "tongyi": "通义千问", "cursor": "Cursor" };
-                const key = host.toLowerCase();
-                if (specialNames[key]) return specialNames[key];
-                return host.split('.').shift().replace(/-/g, ' ').replace(/\b\w/g, s => s.toUpperCase());
-            } catch (e) { return "未命名"; }
+                const host = new URL(url).hostname.replace(/^www\./i, '');
+                const base = host.replace(/\.(com|net|org|cn|io|ai|app|dev|me|co|tv|cc|xyz|top|online|store|tech|news|wiki)(\.[a-z]{2})?$/i, '');
+                const MAP = {
+                    // AI
+                    'chat.openai':'ChatGPT','openai':'OpenAI','deepseek':'DeepSeek',
+                    'claude':'Claude','anthropic':'Claude','gemini':'Gemini',
+                    'tongyi.aliyun':'通义千问','tongyi':'通义千问','qwen':'通义千问',
+                    'kimi':'Kimi','moonshot':'Kimi','mistral':'Mistral',
+                    'cursor':'Cursor','copilot':'Copilot','perplexity':'Perplexity',
+                    'cohere':'Cohere','groq':'Groq','huggingface':'HuggingFace',
+                    // 社交
+                    'github':'GitHub','twitter':'Twitter','x':'X',
+                    'weibo':'微博','zhihu':'知乎','bilibili':'哔哩哔哩',
+                    'spotify':'Spotify','yandex':'Yandex','reddit':'Reddit',
+                    'tophub':'今日热榜','aidazahuopu':'爱达杂货铺',
+                    '0x3':'0x3','xhs':'小红书','xiaohongshu':'小红书','douyin':'抖音',
+                    'instagram':'Instagram','facebook':'Facebook','linkedin':'LinkedIn',
+                    // 地图/日历/天气
+                    'map.baidu':'百度地图','baidu':'百度',
+                    'weather':'天气','weather.com':'天气',
+                    'calendar.google':'Google日历','calendar':'日历',
+                    // 新闻/门户
+                    'guancha':'观察者网','huanqiu':'环球网',
+                    'thepaper':'澎湃新闻','163':'网易','sina':'新浪',
+                    'people':'人民网','xinhua':'新华网',
+                    // 工具
+                    'pdfpai':'PDF工具','alltoall':'在线转换',
+                    'wormhole':'Wormhole','excalidraw':'Excalidraw',
+                    'regexr':'RegExr','caniuse':'Can I Use',
+                    'developer.mozilla':'MDN','stackoverflow':'Stack Overflow',
+                    'npmjs':'npm','pypi':'PyPI','crates':'crates.io',
+                    'translate.google':'Google翻译','deepl':'DeepL',
+                    'notion':'Notion','figma':'Figma','canva':'Canva',
+                    // 影视/音乐
+                    'novip':'noVIP','cmoontv':'小C影视','libertv':'LibertTV',
+                    'ppnix':'PP播','youtube':'YouTube','netflix':'Netflix',
+                    'iqiyi':'爱奇艺','youku':'优酷','mgtv':'芒果TV',
+                    // 邮件
+                    'mail.qq':'QQ邮箱','mail.163':'网易邮箱','mail.126':'126邮箱',
+                    'outlook':'Outlook','gmail':'Gmail','protonmail':'ProtonMail',
+                    // 网络/CF
+                    'itdog':'itdog','boce':'波次检测','ping':'Ping',
+                    'cloudflare':'Cloudflare','vercel':'Vercel',
+                    'render':'Render','railway':'Railway',
+                    // 购物
+                    'taobao':'淘宝','jd':'京东','amazon':'Amazon',
+                    'pinduoduo':'拼多多',
+                };
+                // 精确匹配
+                if (MAP[host]) return MAP[host];
+                if (MAP[base]) return MAP[base];
+                // 部分包含匹配
+                for (const [k, v] of Object.entries(MAP)) {
+                    if (host.includes(k) || base.includes(k)) return v;
+                }
+                // 通用：取主域名首字母大写
+                const main = base.split('.').slice(-1)[0] || base;
+                return main.replace(/-/g,' ').replace(/\b\w/g, s => s.toUpperCase());
+            } catch(e) { return '未命名'; }
+        }
+
+        // ── 真实异步标题抓取（通过CORS代理读网页<title>） ───────────
+        async function fetchPageTitle(url) {
+            const proxies = [
+                u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+                u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+            ];
+            for (const makeProxy of proxies) {
+                try {
+                    const ctrl = new AbortController();
+                    const tid = setTimeout(() => ctrl.abort(), 5000);
+                    const res = await fetch(makeProxy(url), { signal: ctrl.signal });
+                    clearTimeout(tid);
+                    if (!res.ok) continue;
+                    const isAllorigins = makeProxy(url).includes('allorigins');
+                    const html = isAllorigins ? (await res.json()).contents : await res.text();
+                    const m = html?.match(/<title[^>]*>([^<]{1,80})<\/title>/i);
+                    if (m?.[1]) {
+                        // 取第一段（去掉 "- 网站名" 后缀）
+                        const title = m[1].trim()
+                            .split(/\s*[|\-–·—\/\\]\s*/).shift()
+                            .trim().slice(0, 40);
+                        if (title) return title;
+                    }
+                } catch(e) { /* try next proxy */ }
+            }
+            return null;
         }
         function createIconElement(link) {
             const iconSpan = document.createElement('span');
@@ -272,17 +354,30 @@
                         openLinkModal(null, (newName, newUrl) => {
                             if (!newUrl) return;
                             if (!/^https?:\/\//i.test(newUrl)) newUrl = 'https://' + newUrl;
-                            let title = newName?.trim() || fetchTitleFromUrl(newUrl);
                             
                             const currentTab = appData.tabs.find(t => t.id === appData.activeTabId);
-                            const latestCat = currentTab.categories.find(c => c.id === cat.id);
+                            const latestCat = currentTab?.categories.find(c => c.id === cat.id);
+                            if (!latestCat) return;
                             
-                            const newLink = { id: uid(), name: title, url: newUrl };
+                            // 同步：立即用本地映射显示名称
+                            const immediateTitle = newName?.trim() || fetchTitleFromUrl(newUrl);
+                            const newLink = { id: uid(), name: immediateTitle, url: newUrl };
                             latestCat.links.push(newLink);
-                            
                             const newCard = createLinkCard(latestCat, newLink);
                             linksRow.insertBefore(newCard, addLinkBtn);
                             saveData();
+                            
+                            // 异步：没有手动填写名称时，真实抓取网页标题
+                            if (!newName?.trim()) {
+                                const nameEl = newCard.querySelector('.link-name');
+                                fetchPageTitle(newUrl).then(fetched => {
+                                    if (fetched && fetched !== immediateTitle) {
+                                        newLink.name = fetched;
+                                        if (nameEl) nameEl.textContent = fetched;
+                                        saveData();
+                                    }
+                                }).catch(() => {});
+                            }
                         }, true);
                     });
                     linksRow.appendChild(addLinkBtn);
@@ -333,12 +428,21 @@
                         const currentTab = appData.tabs.find(t => t.id === appData.activeTabId);
                         const latestCat = currentTab?.categories.find(c => c.id === cat.id);
                         const latestLink = latestCat?.links.find(l => l.id === link.id);
-                        if (latestLink) {
-                            if (newName) latestLink.name = newName; 
-                            if (newUrl) latestLink.url = newUrl; 
+                        if (!latestLink) return;
+                        if (newUrl) latestLink.url = newUrl;
+                        const targetUrl = newUrl || latestLink.url;
+                        if (newName) {
+                            // 手动填写名称
+                            latestLink.name = newName;
+                            render(); saveData();
+                        } else {
+                            // 名称留空 → 先用本地映射，同时异步抓真实标题
+                            latestLink.name = fetchTitleFromUrl(targetUrl);
+                            render(); saveData();
+                            fetchPageTitle(targetUrl).then(fetched => {
+                                if (fetched) { latestLink.name = fetched; render(); saveData(); }
+                            }).catch(() => {});
                         }
-                        render(); 
-                        saveData(); 
                     }); 
                 });
                 const delBtn = document.createElement('button'); delBtn.textContent = '✖'; 

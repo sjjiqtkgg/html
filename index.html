@@ -7,24 +7,18 @@
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: #f5f5f5; color: #333; min-height: 100vh;
-            transition: background 0.3s, color 0.3s;
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; color: #333; min-height: 100vh; transition: background 0.3s, color 0.3s; }
         .search-container { max-width: 600px; margin: 30px auto 20px; padding: 0 20px; }
         .search-box { display: flex; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         .search-engine { padding: 12px 15px; border: none; background: transparent; cursor: pointer; font-size: 14px; color: #666; }
         .search-input { flex: 1; padding: 12px; border: none; outline: none; font-size: 14px; }
         .search-btn { padding: 12px 20px; border: none; background: transparent; cursor: pointer; color: #666; }
-
         .toolbar { position: fixed; top: 20px; right: 20px; display: flex; gap: 10px; z-index: 100; flex-wrap: wrap; }
         .tool-btn { background: #fff; border: 1px solid #ddd; border-radius: 20px; padding: 6px 14px; font-size: 13px; cursor: pointer; color: #555; transition: all 0.2s; }
         .tool-btn:hover { background: #e8e8e8; }
         .tool-btn.active { background: #333; color: #fff; border-color: #333; }
         body.dark .tool-btn { background: #2a2a2a; border-color: #444; color: #ccc; }
         body.dark .tool-btn.active { background: #e0e0e0; color: #1a1a1a; }
-
         .tab-bar { display: flex; justify-content: center; gap: 40px; padding: 20px 0; background: #fff; border-bottom: 1px solid #e0e0e0; }
         .tab-item { padding: 10px 20px; cursor: pointer; font-size: 16px; color: #666; position: relative; transition: color 0.3s; }
         .tab-item:hover { color: #333; }
@@ -35,9 +29,8 @@
         .small-btn { background: none; border: none; font-size: 12px; cursor: pointer; color: #888; padding: 4px 6px; border-radius: 4px; }
         .small-btn:hover { background: #e8e8e8; color: #333; }
         body.dark .small-btn:hover { background: #3a3a3a; color: #fff; }
-
         .categories-grid { max-width: 1400px; margin: 30px auto 0; padding: 0 20px 40px; display: flex; flex-direction: column; gap: 28px; }
-        .category-block { display: flex; align-items: flex-start; gap: 24px; transition: opacity 0.2s; }
+        .category-block { display: flex; align-items: flex-start; gap: 24px; }
         .drag-handle { cursor: grab; color: #aaa; font-size: 20px; margin-right: 8px; display: none; align-items: center; line-height: 1; }
         body.edit-mode .drag-handle { display: inline-flex; }
         .category-name { width: 110px; flex-shrink: 0; font-size: 16px; font-weight: 500; color: #555; padding-top: 3px; display: flex; align-items: center; gap: 8px; }
@@ -47,7 +40,6 @@
         .category-edit-btns button { background: none; border: none; font-size: 12px; cursor: pointer; padding: 2px 4px; border-radius: 4px; color: #888; }
         .category-edit-btns button:hover { background: #e8e8e8; color: #333; }
         body.dark .category-edit-btns button:hover { background: #3a3a3a; color: #fff; }
-
         .links-row { flex: 1; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; min-height: 32px; }
         .link-card { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; background: #fff; border-radius: 8px; transition: all 0.2s ease; cursor: pointer; text-decoration: none; color: #333; white-space: nowrap; user-select: none; }
         .link-card:hover { background: #e8e8e8; transform: translateY(-1px); box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
@@ -56,7 +48,6 @@
         .sortable-ghost { opacity: 0.4; background: #e8e8e8; outline: 2px dashed #4a90d9; }
         body.dark .sortable-ghost { background: #333; }
         .category-ghost { opacity: 0.4; outline: 2px dashed #888; outline-offset: 4px; border-radius: 8px; }
-
         .link-icon { width: 22px; height: 22px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; overflow: hidden; }
         .link-icon img { width: 100%; height: 100%; object-fit: contain; display: block; }
         .link-name { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -65,7 +56,6 @@
         .link-card-actions button { background: none; border: none; font-size: 12px; cursor: pointer; padding: 2px 4px; border-radius: 4px; color: #888; }
         .link-card-actions button:hover { background: #e8e8e8; color: #333; }
         body.dark .link-card-actions button:hover { background: #3a3a3a; color: #fff; }
-
         .add-link-btn, .add-category-btn { display: none; }
         body.edit-mode .add-link-btn { display: inline-block; }
         body.edit-mode .add-category-btn { display: inline-block; }
@@ -75,14 +65,12 @@
         .add-category-btn:hover { border-color: #333; color: #333; }
         body.dark .add-link-btn, body.dark .add-category-btn { border-color: #555; color: #aaa; }
         body.dark .add-link-btn:hover, body.dark .add-category-btn:hover { border-color: #e0e0e0; color: #e0e0e0; }
-
         body.dark { background: #1a1a1a; color: #e0e0e0; }
         body.dark .tab-bar { background: #2a2a2a; border-bottom-color: #3a3a3a; }
         body.dark .tab-item { color: #999; }
         body.dark .tab-item:hover, body.dark .tab-item.active { color: #e0e0e0; }
         body.dark .tab-item.active::after { background: #e0e0e0; }
         body.dark .search-box { background: #2a2a2a; }
-
         .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000; }
         .modal-content { background: #fff; padding: 24px; border-radius: 12px; width: 320px; max-width: 90%; }
         body.dark .modal-content { background: #2a2a2a; }
@@ -102,7 +90,6 @@
         <button class="tool-btn" id="importBtn" title="导入配置">⬆️ 导入</button>
         <input type="file" id="importFileInput" accept=".json">
     </div>
-
     <div class="search-container">
         <div class="search-box">
             <select class="search-engine" id="searchEngine">
@@ -114,10 +101,8 @@
             <button class="search-btn" id="searchBtn">🔍</button>
         </div>
     </div>
-
     <div class="tab-bar" id="tabBar"></div>
     <div class="categories-grid" id="categoriesGrid"></div>
-
     <div class="modal" id="modal">
         <div class="modal-content">
             <h3 id="modalTitle"></h3>
@@ -128,397 +113,223 @@
             </div>
         </div>
     </div>
-
     <script>
         function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
-
         function fetchTitleFromUrl(url) {
             try {
                 const host = new URL(url).hostname.replace(/^www\./i, '').replace(/\.(com|net|org|cn|io|ai|app|dev)$/i, '');
-                const specialNames = {
-                    "chatgpt": "ChatGPT", "openai": "OpenAI", "github": "GitHub", "deepseek": "DeepSeek",
-                    "claude": "Claude", "anthropic": "Claude", "gemini": "Gemini", "google": "Google",
-                    "youtube": "YouTube", "twitter": "Twitter", "x": "X", "spotify": "Spotify",
-                    "bilibili": "Bilibili", "weibo": "微博", "qq": "QQ", "baidu": "百度",
-                    "aliyun": "阿里云", "tongyi": "通义千问", "cursor": "Cursor"
-                };
+                const specialNames = { "chatgpt": "ChatGPT", "openai": "OpenAI", "github": "GitHub", "deepseek": "DeepSeek", "claude": "Claude", "anthropic": "Claude", "gemini": "Gemini", "google": "Google", "youtube": "YouTube", "twitter": "Twitter", "x": "X", "spotify": "Spotify", "bilibili": "Bilibili", "weibo": "微博", "qq": "QQ", "baidu": "百度", "aliyun": "阿里云", "tongyi": "通义千问", "cursor": "Cursor" };
                 const key = host.toLowerCase();
                 if (specialNames[key]) return specialNames[key];
                 return host.split('.').shift().replace(/-/g, ' ').replace(/\b\w/g, s => s.toUpperCase());
             } catch (e) { return "未命名"; }
         }
-
         function createIconElement(link) {
             const iconSpan = document.createElement('span');
             iconSpan.className = 'link-icon';
             const firstChar = link.name.charAt(0).toUpperCase();
             const FAV_COLORS = ['#3b82f6','#8b5cf6','#06b6d4','#22c55e','#f97316','#ec4899','#ef4444','#0ea5e9'];
-
-            let domain = '';
-            let validUrl = false;
+            let domain = '', validUrl = false;
             try { domain = new URL(link.url).hostname; validUrl = true; } catch {}
-
             if (validUrl && domain && link.url !== '#') {
                 const img = document.createElement('img');
                 let tryCount = 0;
-                const sources = [
-                    `https://icons.duckduckgo.com/ip3/${domain}.ico`,
-                    `https://www.google.com/s2/favicons?domain=${domain}&sz=32`
-                ];
+                const sources = [ `https://icons.duckduckgo.com/ip3/${domain}.ico`, `https://www.google.com/s2/favicons?domain=${domain}&sz=32` ];
                 function tryNext() {
                     if (tryCount >= sources.length) {
                         img.remove();
                         let ci = (domain + link.name).charCodeAt(0) % FAV_COLORS.length;
-                        iconSpan.style.background = FAV_COLORS[ci];
-                        iconSpan.style.color = '#fff';
-                        iconSpan.style.fontSize = '12px';
-                        iconSpan.style.fontWeight = '700';
-                        iconSpan.textContent = firstChar;
+                        iconSpan.style.background = FAV_COLORS[ci]; iconSpan.style.color = '#fff'; iconSpan.style.fontSize = '12px'; iconSpan.style.fontWeight = '700'; iconSpan.textContent = firstChar;
                         return;
                     }
-                    img.src = sources[tryCount];
-                    tryCount++;
+                    img.src = sources[tryCount]; tryCount++;
                 }
-                img.onload = () => {};
-                img.onerror = tryNext;
-                tryNext();
-                iconSpan.appendChild(img);
+                img.onload = () => {}; img.onerror = tryNext; tryNext(); iconSpan.appendChild(img);
             } else {
                 let ci = link.name.charCodeAt(0) % FAV_COLORS.length;
-                iconSpan.style.background = FAV_COLORS[ci];
-                iconSpan.style.color = '#fff';
-                iconSpan.style.fontSize = '12px';
-                iconSpan.style.fontWeight = '700';
-                iconSpan.textContent = firstChar;
+                iconSpan.style.background = FAV_COLORS[ci]; iconSpan.style.color = '#fff'; iconSpan.style.fontSize = '12px'; iconSpan.style.fontWeight = '700'; iconSpan.textContent = firstChar;
             }
             return iconSpan;
         }
-
         const defaultData = {
-            tabs: [
-                { id: uid(), name: '日常', categories: [
-                    { id: uid(), name: '社交', links: [
-                        { id: uid(), name: '微博', url: 'https://weibo.com' },
-                        { id: uid(), name: '知乎', url: 'https://zhihu.com' }
-                    ]},
-                    { id: uid(), name: 'AI', links: [
-                        { id: uid(), name: 'ChatGPT', url: 'https://chat.openai.com' },
-                        { id: uid(), name: 'DeepSeek', url: 'https://deepseek.com' }
-                    ]}
-                ]}
-            ],
-            activeTabId: ''
+            tabs: [ { id: uid(), name: '日常', categories: [
+                { id: uid(), name: '社交', links: [ { id: uid(), name: '爱达杂货铺', url: 'https://aidazahuopu.com' }, { id: uid(), name: '今日热榜', url: 'https://tophub.today' }, { id: uid(), name: 'Spotify', url: 'https://open.spotify.com' }, { id: uid(), name: '微博', url: 'https://weibo.com' }, { id: uid(), name: 'Yandex', url: 'https://yandex.com' } ] },
+                { id: uid(), name: 'AI', links: [ { id: uid(), name: 'ChatGPT', url: 'https://chat.openai.com' }, { id: uid(), name: 'DeepSeek', url: 'https://deepseek.com' }, { id: uid(), name: 'Gemini', url: 'https://gemini.google.com' }, { id: uid(), name: 'Claude', url: 'https://claude.ai' }, { id: uid(), name: '通义千问', url: 'https://tongyi.aliyun.com' }, { id: uid(), name: 'Cursor', url: 'https://cursor.sh' } ] },
+                { id: uid(), name: '便捷', links: [ { id: uid(), name: '百度地图', url: 'https://map.baidu.com' }, { id: uid(), name: '天气', url: 'https://weather.com' }, { id: uid(), name: '日历', url: 'https://calendar.google.com' } ] },
+                { id: uid(), name: '门户', links: [ { id: uid(), name: '观察者网', url: 'https://www.guancha.cn' }, { id: uid(), name: '环球网', url: 'https://www.huanqiu.com' } ] }
+            ] } ], activeTabId: ''
         };
-
         let appData = JSON.parse(JSON.stringify(defaultData));
-        let editMode = false;
-        let isDark = false;
-        const STORAGE_KEY = 'startpage_stable_v3';
-
+        let editMode = false, isDark = false;
+        const STORAGE_KEY = 'startpage_editable_v3';
         function loadData() {
             const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved) {
-                try { const p = JSON.parse(saved); if (p.tabs && p.tabs.length) appData = p; } catch(e) {}
-            }
-            if (!appData.tabs.find(t => t.id === appData.activeTabId) && appData.tabs.length) {
-                appData.activeTabId = appData.tabs[0].id;
-            }
+            if (saved) { try { const parsed = JSON.parse(saved); if (parsed.tabs && parsed.tabs.length) appData = parsed; } catch(e) {} }
+            if (!appData.tabs.find(t => t.id === appData.activeTabId) && appData.tabs.length) appData.activeTabId = appData.tabs[0].id;
         }
         function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); }
-
-        // 仅拖拽后从 DOM 同步
         function syncDataFromDOM() {
             const activeTab = appData.tabs.find(t => t.id === appData.activeTabId);
             if (!activeTab) return;
-
-            // 构建全局 linkMap
-            const linkMap = new Map();
-            activeTab.categories.forEach(cat => {
-                cat.links.forEach(link => linkMap.set(link.id, link));
-            });
-
+            const linkMap = new Map(), catMap = new Map();
+            activeTab.categories.forEach(cat => { catMap.set(cat.id, cat); cat.links.forEach(link => { linkMap.set(link.id, link); }); });
             const newCategories = [];
-            document.querySelectorAll('.category-block').forEach(block => {
-                const catId = block.dataset.catId;
-                const origCat = activeTab.categories.find(c => c.id === catId);
+            document.querySelectorAll('.category-block').forEach(catBlock => {
+                const catId = catBlock.dataset.catId;
+                let origCat = catMap.get(catId);
                 if (!origCat) return;
-
                 const newLinks = [];
-                block.querySelectorAll('.link-card').forEach(card => {
-                    const linkId = card.dataset.linkId;
-                    if (linkMap.has(linkId)) {
-                        newLinks.push(linkMap.get(linkId));
-                    }
+                catBlock.querySelectorAll('.link-card').forEach(linkCard => {
+                    const linkId = linkCard.dataset.linkId;
+                    let origLink = linkMap.get(linkId); 
+                    if (origLink) newLinks.push(origLink);
                 });
-
                 newCategories.push({ ...origCat, links: newLinks });
             });
-
             activeTab.categories = newCategories;
             saveData();
         }
-
         function render() { renderTabs(); renderAllCategories(); }
-
         function renderTabs() {
-            const bar = document.getElementById('tabBar');
-            bar.innerHTML = '';
+            const tabBar = document.getElementById('tabBar'); tabBar.innerHTML = '';
             appData.tabs.forEach(tab => {
-                const div = document.createElement('div');
-                div.className = 'tab-item' + (tab.id === appData.activeTabId ? ' active' : '');
-                div.textContent = tab.name;
-                div.onclick = () => { appData.activeTabId = tab.id; render(); saveData(); };
+                const tabDiv = document.createElement('div');
+                tabDiv.className = 'tab-item' + (tab.id === appData.activeTabId ? ' active' : '');
+                tabDiv.textContent = tab.name;
+                tabDiv.addEventListener('click', () => { appData.activeTabId = tab.id; render(); saveData(); });
                 if (editMode) {
-                    const span = document.createElement('span');
-                    span.className = 'edit-controls';
-                    const rn = document.createElement('button'); rn.textContent='✎'; rn.className='small-btn';
-                    rn.onclick = e => { e.stopPropagation(); openModal('重命名', tab.name, v => { if(v) { tab.name = v; render(); saveData(); } }); };
-                    const dl = document.createElement('button'); dl.textContent='✖'; dl.className='small-btn';
-                    dl.onclick = e => { e.stopPropagation(); if(confirm('删除该标签？')) { appData.tabs = appData.tabs.filter(t=>t.id!==tab.id); if(appData.tabs.length===0) appData.tabs=[{id:uid(),name:'日常',categories:[]}]; if(appData.activeTabId===tab.id) appData.activeTabId=appData.tabs[0].id; render(); saveData(); } };
-                    span.appendChild(rn); span.appendChild(dl);
-                    div.appendChild(span);
+                    const editSpan = document.createElement('span'); editSpan.className = 'edit-controls';
+                    const renameBtn = document.createElement('button'); renameBtn.textContent = '✎'; renameBtn.className = 'small-btn';
+                    renameBtn.addEventListener('click', (e) => { e.stopPropagation(); openModal('重命名标签', tab.name, (newName) => { if (newName && newName.trim()) { tab.name = newName.trim(); render(); saveData(); } }); });
+                    const delBtn = document.createElement('button'); delBtn.textContent = '✖'; delBtn.className = 'small-btn';
+                    delBtn.addEventListener('click', (e) => { e.stopPropagation(); if (confirm(`确定删除标签"${tab.name}"及其所有分类和链接吗？`)) { const index = appData.tabs.findIndex(t => t.id === tab.id); appData.tabs.splice(index, 1); if (appData.tabs.length === 0) appData.tabs = [{ id: uid(), name: '日常', categories: [] }]; if (appData.activeTabId === tab.id) appData.activeTabId = appData.tabs[0].id; render(); saveData(); } });
+                    editSpan.appendChild(renameBtn); editSpan.appendChild(delBtn); tabDiv.appendChild(editSpan);
                 }
-                bar.appendChild(div);
+                tabBar.appendChild(tabDiv);
             });
             if (editMode) {
-                const add = document.createElement('button'); add.textContent='+ 添加标签'; add.className='small-btn'; add.style.marginLeft='20px';
-                add.onclick = () => openModal('新建标签', '', v => { if(v) { appData.tabs.push({id:uid(), name:v, categories:[]}); appData.activeTabId = appData.tabs[appData.tabs.length-1].id; render(); saveData(); } });
-                bar.appendChild(add);
+                const addTabBtn = document.createElement('button'); addTabBtn.textContent = '+ 添加标签'; addTabBtn.className = 'small-btn'; addTabBtn.style.marginLeft = '20px';
+                addTabBtn.addEventListener('click', () => { openModal('新建标签', '', (newName) => { if (newName && newName.trim()) { const newTab = { id: uid(), name: newName.trim(), categories: [] }; appData.tabs.push(newTab); appData.activeTabId = newTab.id; render(); saveData(); } }); });
+                tabBar.appendChild(addTabBtn);
             }
         }
-
         function renderAllCategories() {
             const activeTab = appData.tabs.find(t => t.id === appData.activeTabId);
             const container = document.getElementById('categoriesGrid');
-            
-            // 销毁旧 Sortable 实例
-            if (window.sortableInstances) {
-                window.sortableInstances.forEach(s => s.destroy());
-            }
+            if (window.sortableInstances) window.sortableInstances.forEach(s => s.destroy());
             window.sortableInstances = [];
-
             container.innerHTML = '';
             if (!activeTab) return;
             if (activeTab.categories.length === 0) {
-                container.innerHTML = '<div style="text-align:center;color:#888;padding:40px;">暂无分类，点击编辑添加</div>';
+                container.innerHTML = '<div style="text-align: center; color: #888; padding: 40px;">暂无分类，点击编辑开始添加</div>';
                 if (editMode) {
-                    const add = document.createElement('button'); add.textContent='+ 添加分类'; add.className='add-category-btn';
-                    add.onclick = () => openModal('新建分类', '', v => { if(v) { activeTab.categories.push({id:uid(), name:v, links:[]}); render(); saveData(); } });
-                    container.appendChild(add);
+                    const addCatBtn = document.createElement('button'); addCatBtn.textContent = '+ 添加分类'; addCatBtn.className = 'add-category-btn';
+                    addCatBtn.addEventListener('click', () => { openModal('新建分类', '', (newName) => { if (newName && newName.trim()) { activeTab.categories.push({ id: uid(), name: newName.trim(), links: [] }); render(); saveData(); } }); });
+                    container.appendChild(addCatBtn);
                 }
                 return;
             }
-
-            activeTab.categories.forEach(cat => {
-                const block = document.createElement('div');
-                block.className = 'category-block';
-                block.dataset.catId = cat.id;
-
-                const nameDiv = document.createElement('div');
-                nameDiv.className = 'category-name';
-                const handle = document.createElement('span');
-                handle.className = 'drag-handle';
-                handle.innerHTML = '⋮⋮';
-                nameDiv.appendChild(handle);
-                const nameSpan = document.createElement('span');
-                nameSpan.textContent = cat.name;
-                nameDiv.appendChild(nameSpan);
-
+            activeTab.categories.forEach((cat) => {
+                const block = document.createElement('div'); block.className = 'category-block'; block.dataset.catId = cat.id;
+                const nameDiv = document.createElement('div'); nameDiv.className = 'category-name';
+                const handle = document.createElement('span'); handle.className = 'drag-handle'; handle.innerHTML = '⋮⋮'; handle.title = '拖拽排序分类'; nameDiv.appendChild(handle);
+                const nameSpan = document.createElement('span'); nameSpan.textContent = cat.name; nameDiv.appendChild(nameSpan);
                 if (editMode) {
-                    const btnGroup = document.createElement('div');
-                    btnGroup.className = 'category-edit-btns';
-                    const rn = document.createElement('button'); rn.textContent='✎'; rn.onclick = e => { e.stopPropagation(); openModal('重命名', cat.name, v => { if(v) { cat.name = v; render(); saveData(); } }); };
-                    const dl = document.createElement('button'); dl.textContent='✖'; dl.onclick = e => { e.stopPropagation(); if(confirm('删除该分类？')) { const idx = activeTab.categories.findIndex(c=>c.id===cat.id); if(idx!==-1) activeTab.categories.splice(idx,1); render(); saveData(); } };
-                    btnGroup.appendChild(rn); btnGroup.appendChild(dl);
-                    nameDiv.appendChild(btnGroup);
+                    const btnGroup = document.createElement('div'); btnGroup.className = 'category-edit-btns';
+                    const renameBtn = document.createElement('button'); renameBtn.textContent = '✎'; renameBtn.addEventListener('click', (e) => { e.stopPropagation(); openModal('重命名分类', cat.name, (newName) => { if (newName && newName.trim()) { cat.name = newName.trim(); render(); saveData(); } }); });
+                    const delBtn = document.createElement('button'); delBtn.textContent = '✖'; delBtn.addEventListener('click', (e) => { e.stopPropagation(); if (confirm(`删除分类"${cat.name}"及其所有链接？`)) { const idx = activeTab.categories.findIndex(c => c.id === cat.id); activeTab.categories.splice(idx, 1); render(); saveData(); } });
+                    btnGroup.appendChild(renameBtn); btnGroup.appendChild(delBtn); nameDiv.appendChild(btnGroup);
                 }
                 block.appendChild(nameDiv);
-
-                const linksRow = document.createElement('div');
-                linksRow.className = 'links-row';
-                linksRow.dataset.catId = cat.id;
-                cat.links.forEach(link => linksRow.appendChild(createLinkCard(cat, link)));
-
+                const linksRow = document.createElement('div'); linksRow.className = 'links-row'; linksRow.dataset.catId = cat.id;
+                cat.links.forEach(link => { linksRow.appendChild(createLinkCard(cat, link)); });
                 if (editMode) {
-                    const addBtn = document.createElement('button'); addBtn.textContent='+ 添加链接'; addBtn.className='add-link-btn';
-                    addBtn.onclick = () => openLinkModal(null, (name, url) => {
-                        if (!url) return;
-                        if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-                        const title = name?.trim() || fetchTitleFromUrl(url);
-                        cat.links.push({ id: uid(), name: title, url: url }); // 直接 push 到数据末尾
-                        render(); saveData();
-                    }, true);
-                    linksRow.appendChild(addBtn);
-                }
-
-                block.appendChild(linksRow);
-                container.appendChild(block);
-            });
-
-            if (editMode) {
-                const addCat = document.createElement('button'); addCat.textContent='+ 添加分类'; addCat.className='add-category-btn';
-                addCat.onclick = () => openModal('新建分类', '', v => { if(v) { activeTab.categories.push({id:uid(), name:v, links:[]}); render(); saveData(); } });
-                container.appendChild(addCat);
-
-                // 初始化 Sortable，拖拽结束时同步
-                const catSort = new Sortable(container, {
-                    animation: 150,
-                    handle: '.drag-handle',
-                    ghostClass: 'category-ghost',
-                    draggable: '.category-block',
-                    filter: '.add-category-btn',
-                    onEnd: () => { syncDataFromDOM(); }
-                });
-                window.sortableInstances.push(catSort);
-
-                document.querySelectorAll('.links-row').forEach(row => {
-                    const linkSort = new Sortable(row, {
-                        group: 'shared-links',
-                        animation: 150,
-                        ghostClass: 'sortable-ghost',
-                        draggable: '.link-card',
-                        filter: '.add-link-btn',
-                        onEnd: () => { syncDataFromDOM(); }
+                    const addLinkBtn = document.createElement('button'); addLinkBtn.textContent = '+ 添加链接'; addLinkBtn.className = 'add-link-btn';
+                    addLinkBtn.addEventListener('click', () => {
+                        openLinkModal(null, (newName, newUrl) => {
+                            if (!newUrl) return;
+                            if (!/^https?:\/\//i.test(newUrl)) newUrl = 'https://' + newUrl;
+                            let title = newName?.trim() || fetchTitleFromUrl(newUrl);
+                            const newLink = { id: uid(), name: title, url: newUrl };
+                            cat.links.push(newLink);
+                            // 🌟 关键修复：直接插入 DOM，避免全局 render 导致 Sortable 重新初始化引发的乱序
+                            const newCard = createLinkCard(cat, newLink);
+                            linksRow.insertBefore(newCard, addLinkBtn);
+                            saveData();
+                        }, true);
                     });
-                    window.sortableInstances.push(linkSort);
+                    linksRow.appendChild(addLinkBtn);
+                }
+                block.appendChild(linksRow); container.appendChild(block);
+            });
+            if (editMode) {
+                const addCatBtn = document.createElement('button'); addCatBtn.textContent = '+ 添加分类'; addCatBtn.className = 'add-category-btn';
+                addCatBtn.addEventListener('click', () => { openModal('新建分类', '', (newName) => { if (newName && newName.trim()) { activeTab.categories.push({ id: uid(), name: newName.trim(), links: [] }); render(); saveData(); } }); });
+                container.appendChild(addCatBtn);
+                const categorySortable = new Sortable(container, { animation: 150, handle: '.drag-handle', ghostClass: 'category-ghost', draggable: '.category-block', filter: '.add-category-btn', onEnd: () => { syncDataFromDOM(); } });
+                window.sortableInstances.push(categorySortable);
+                document.querySelectorAll('.links-row').forEach(row => {
+                    const linkSortable = new Sortable(row, { group: 'shared-links', animation: 150, ghostClass: 'sortable-ghost', draggable: '.link-card', filter: '.add-link-btn', onEnd: () => { syncDataFromDOM(); } });
+                    window.sortableInstances.push(linkSortable);
                 });
             }
         }
-
         function createLinkCard(cat, link) {
-            const card = document.createElement('div');
-            card.className = 'link-card';
-            card.dataset.linkId = link.id;
-            card.draggable = editMode;
-
+            const card = document.createElement('div'); card.className = 'link-card'; card.dataset.linkId = link.id; card.draggable = editMode;
             card.appendChild(createIconElement(link));
-            const nameSpan = document.createElement('span');
-            nameSpan.className = 'link-name';
-            nameSpan.textContent = link.name;
-            card.appendChild(nameSpan);
-
-            card.addEventListener('click', (e) => {
-                if (editMode) return;
-                if (link.url && link.url !== '#') window.open(link.url, '_blank');
-                else alert('该链接未设置有效网址');
-            });
-
+            const nameSpan = document.createElement('span'); nameSpan.className = 'link-name'; nameSpan.textContent = link.name; card.appendChild(nameSpan);
+            card.addEventListener('click', (e) => { if (editMode) return; if (link.url && link.url !== '#') window.open(link.url, '_blank'); else alert('该链接尚未配置有效网址，请编辑后使用。'); });
             if (editMode) {
-                const actions = document.createElement('div');
-                actions.className = 'link-card-actions';
-                const editBtn = document.createElement('button'); editBtn.textContent='✎';
-                editBtn.onclick = e => { e.stopPropagation(); openLinkModal(link, (name, url) => { if(name) link.name = name; if(url) link.url = url; render(); saveData(); }); };
-                const delBtn = document.createElement('button'); delBtn.textContent='✖';
-                delBtn.onclick = e => { e.stopPropagation(); if(confirm('删除？')) { const idx = cat.links.findIndex(l=>l.id===link.id); if(idx!==-1) cat.links.splice(idx,1); render(); saveData(); } };
-                actions.appendChild(editBtn); actions.appendChild(delBtn);
-                card.appendChild(actions);
+                const actions = document.createElement('div'); actions.className = 'link-card-actions';
+                const editBtn = document.createElement('button'); editBtn.textContent = '✎'; editBtn.addEventListener('click', (e) => { e.stopPropagation(); openLinkModal(link, (newName, newUrl) => { if (newName) link.name = newName; if (newUrl) link.url = newUrl; render(); saveData(); }); });
+                const delBtn = document.createElement('button'); delBtn.textContent = '✖'; delBtn.addEventListener('click', (e) => { e.stopPropagation(); if (confirm(`删除链接"${link.name}"？`)) { const idx = cat.links.findIndex(l => l.id === link.id); cat.links.splice(idx, 1); render(); saveData(); } });
+                actions.appendChild(editBtn); actions.appendChild(delBtn); card.appendChild(actions);
             }
             return card;
         }
-
         let currentModalCallback = null;
         function openModal(title, defaultValue, callback, isLinkMode = false) {
-            const modal = document.getElementById('modal');
-            modal.querySelector('#modalTitle').textContent = title;
-            const fields = modal.querySelector('#modalFields');
-            fields.innerHTML = '';
+            const modal = document.getElementById('modal'); modal.querySelector('#modalTitle').textContent = title;
+            const fields = modal.querySelector('#modalFields'); fields.innerHTML = '';
             if (isLinkMode) {
-                fields.innerHTML = `<label>网址：</label><input type="text" placeholder="https://..." value="${defaultValue.url||''}" id="urlInput">
-                <label>名称（留空自动生成）：</label><input type="text" placeholder="自动识别..." value="${defaultValue.name||''}" id="nameInput">`;
-                currentModalCallback = () => {
-                    const url = document.getElementById('urlInput').value.trim();
-                    if (!url) return false;
-                    callback(document.getElementById('nameInput').value.trim(), url);
-                    return true;
-                };
+                fields.innerHTML = `<label>网址：</label><input type="text" placeholder="https://..." value="${defaultValue.url || ''}" id="urlInput"><label>名称（留空自动生成）：</label><input type="text" placeholder="自动识别..." value="${defaultValue.name || ''}" id="nameInput">`;
+                currentModalCallback = () => { const url = document.getElementById('urlInput').value.trim(); if (!url) return false; callback(document.getElementById('nameInput').value.trim(), url); return true; };
             } else {
-                fields.innerHTML = `<input type="text" value="${defaultValue}" placeholder="名称" id="nameInput">`;
-                currentModalCallback = () => {
-                    const val = document.getElementById('nameInput').value.trim();
-                    if (!val) return false;
-                    callback(val);
-                    return true;
-                };
+                fields.innerHTML = `<input type="text" value="${defaultValue}" placeholder="请输入名称" id="nameInput">`;
+                currentModalCallback = () => { const val = document.getElementById('nameInput').value.trim(); if (!val) return false; callback(val); return true; };
             }
             modal.style.display = 'flex';
-            const close = () => { modal.style.display = 'none'; };
-            modal.querySelector('#modalConfirm').onclick = () => { if (currentModalCallback && currentModalCallback()) close(); };
-            modal.querySelector('#modalCancel').onclick = close;
-            modal.onclick = e => { if (e.target === modal) close(); };
+            const closeModal = () => { modal.style.display = 'none'; };
+            modal.querySelector('#modalConfirm').onclick = () => { if (currentModalCallback && currentModalCallback()) closeModal(); };
+            modal.querySelector('#modalCancel').onclick = closeModal;
+            modal.onclick = (e) => { if (e.target === modal) closeModal(); };
         }
-        function openLinkModal(link, callback, isNew = false) {
-            const dv = link ? { name: link.name, url: link.url } : { name: '', url: '' };
-            openModal(isNew ? '添加链接' : '编辑链接', dv, callback, true);
-        }
-
-        function toggleEditMode() {
-            editMode = !editMode;
-            document.body.classList.toggle('edit-mode', editMode);
-            document.getElementById('editModeBtn').classList.toggle('active', editMode);
-            render();
-        }
-        function toggleTheme() {
-            isDark = !isDark;
-            document.body.classList.toggle('dark', isDark);
-            localStorage.setItem('startpage_theme', isDark ? 'dark' : 'light');
-        }
-
+        function openLinkModal(link, callback, isNew = false) { const defaultValue = link ? { name: link.name, url: link.url } : { name: '', url: '' }; openModal(isNew ? '添加链接' : '编辑链接', defaultValue, callback, true); }
+        function toggleEditMode() { editMode = !editMode; document.body.classList.toggle('edit-mode', editMode); document.getElementById('editModeBtn').classList.toggle('active', editMode); render(); }
+        function toggleTheme() { isDark = !isDark; if (isDark) document.body.classList.add('dark'); else document.body.classList.remove('dark'); localStorage.setItem('startpage_theme', isDark ? 'dark' : 'light'); }
         function performSearch() {
-            const q = document.getElementById('searchInput').value.trim();
-            if (!q) return;
-            if (/^[\w.-]+\.[a-zA-Z]{2,}(\/|$)?$/.test(q) && !q.includes(' ')) {
-                window.open('https://' + q, '_blank');
-                return;
-            }
-            const eng = document.getElementById('searchEngine').value;
-            let url;
-            if (eng === 'baidu') url = `https://www.baidu.com/s?wd=${encodeURIComponent(q)}`;
-            else if (eng === 'google') url = `https://www.google.com/search?q=${encodeURIComponent(q)}`;
-            else url = `https://www.bing.com/search?q=${encodeURIComponent(q)}`;
+            const query = document.getElementById('searchInput').value.trim(); if (!query) return;
+            if (/^[\w.-]+\.[a-zA-Z]{2,}(\/|$)?$/.test(query) && !query.includes(' ')) { window.open('https://' + query, '_blank'); return; }
+            const engine = document.getElementById('searchEngine').value; let url;
+            if (engine === 'baidu') url = `https://www.baidu.com/s?wd=${encodeURIComponent(query)}`;
+            else if (engine === 'google') url = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+            else url = `https://www.bing.com/search?q=${encodeURIComponent(query)}`;
             window.open(url, '_blank');
         }
-
-        function exportConfig() {
-            const blob = new Blob([JSON.stringify(appData, null, 2)], { type: 'application/json' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = `startpage_backup_${new Date().toISOString().slice(0,10)}.json`;
-            a.click();
-        }
-        function importConfig(file) {
-            const reader = new FileReader();
-            reader.onload = e => {
-                try {
-                    const data = JSON.parse(e.target.result);
-                    if (data.tabs && Array.isArray(data.tabs)) {
-                        appData = data;
-                        saveData();
-                        render();
-                        alert('导入成功');
-                    } else alert('无效文件');
-                } catch (ex) { alert('解析失败'); }
-            };
-            reader.readAsText(file);
-        }
-
-        document.addEventListener('keydown', e => {
-            if (e.ctrlKey && e.key === 'k') {
-                e.preventDefault();
-                document.getElementById('searchInput').focus();
-            }
-        });
-
+        function exportConfig() { const blob = new Blob([JSON.stringify(appData, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `startpage_backup_${new Date().toISOString().slice(0,10)}.json`; a.click(); }
+        function importConfig(file) { const reader = new FileReader(); reader.onload = (e) => { try { const data = JSON.parse(e.target.result); if (data.tabs && Array.isArray(data.tabs)) { appData = data; saveData(); render(); alert('配置导入成功！'); } else alert('无效的配置文件'); } catch (ex) { alert('解析失败'); } }; reader.readAsText(file); }
+        document.addEventListener('keydown', (e) => { if (e.ctrlKey && e.key === 'k') { e.preventDefault(); document.getElementById('searchInput').focus(); } });
         function init() {
             loadData();
-            if (localStorage.getItem('startpage_theme') === 'dark') { isDark = true; document.body.classList.add('dark'); }
+            const savedTheme = localStorage.getItem('startpage_theme'); if (savedTheme === 'dark') { isDark = true; document.body.classList.add('dark'); }
             render();
             document.getElementById('editModeBtn').addEventListener('click', toggleEditMode);
             document.getElementById('themeToggleBtn').addEventListener('click', toggleTheme);
             document.getElementById('exportBtn').addEventListener('click', exportConfig);
             document.getElementById('importBtn').addEventListener('click', () => document.getElementById('importFileInput').click());
-            document.getElementById('importFileInput').addEventListener('change', e => { if(e.target.files[0]) importConfig(e.target.files[0]); });
+            document.getElementById('importFileInput').addEventListener('change', (e) => { if (e.target.files[0]) importConfig(e.target.files[0]); });
             document.getElementById('searchBtn').addEventListener('click', performSearch);
-            document.getElementById('searchInput').addEventListener('keypress', e => { if(e.key === 'Enter') performSearch(); });
+            document.getElementById('searchInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') performSearch(); });
         }
         init();
     </script>

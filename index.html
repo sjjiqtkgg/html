@@ -80,6 +80,12 @@
         .modal-buttons .confirm { background: #333; color: #fff; }
         .modal-buttons .cancel { background: #e0e0e0; }
         #importFileInput { display: none; }
+        /* ── ① 识别中状态（favicon异步抓取期间） ── */
+        @keyframes sp-blink { 0%,100%{opacity:.45} 50%{opacity:1} }
+        .link-name.fetching { animation: sp-blink 1.1s ease infinite; }
+        /* ── Modal细节 ── */
+        body.dark .modal-content input { background: #1a1a1a; border-color: #555; color: #e0e0e0; }
+        .modal-content label { font-size: 13px; color: #888; display: block; margin-bottom: 2px; }
     </style>
 </head>
 <body>
@@ -206,6 +212,7 @@
             }
             return null;
         }
+        // ── ④ Favicon缓存（sessionStorage，页面内不重复请求） ──────
         function createIconElement(link) {
             const iconSpan = document.createElement('span');
             iconSpan.className = 'link-icon';
@@ -213,23 +220,46 @@
             const FAV_COLORS = ['#3b82f6','#8b5cf6','#06b6d4','#22c55e','#f97316','#ec4899','#ef4444','#0ea5e9'];
             let domain = '', validUrl = false;
             try { domain = new URL(link.url).hostname; validUrl = true; } catch {}
+
+            function showLetter() {
+                let ci = (domain + link.name).charCodeAt(0) % FAV_COLORS.length;
+                iconSpan.style.cssText = `background:${FAV_COLORS[ci]};color:#fff;font-size:12px;font-weight:700;`;
+                iconSpan.textContent = firstChar;
+            }
+
             if (validUrl && domain && link.url !== '#') {
-                const img = document.createElement('img');
-                let tryCount = 0;
-                const sources = [ `https://icons.duckduckgo.com/ip3/${domain}.ico`, `https://www.google.com/s2/favicons?domain=${domain}&sz=32` ];
-                function tryNext() {
-                    if (tryCount >= sources.length) {
-                        img.remove();
-                        let ci = (domain + link.name).charCodeAt(0) % FAV_COLORS.length;
-                        iconSpan.style.background = FAV_COLORS[ci]; iconSpan.style.color = '#fff'; iconSpan.style.fontSize = '12px'; iconSpan.style.fontWeight = '700'; iconSpan.textContent = firstChar;
-                        return;
+                const cacheKey = `fav_${domain}`;
+                const cached = sessionStorage.getItem(cacheKey);
+
+                if (cached === 'letter') {
+                    // 已知加载失败，直接显示字母
+                    showLetter();
+                } else {
+                    const img = document.createElement('img');
+                    // 有缓存直接用；没有缓存依次尝试两个源
+                    const sources = cached
+                        ? [cached]
+                        : [`https://icons.duckduckgo.com/ip3/${domain}.ico`,
+                           `https://www.google.com/s2/favicons?domain=${domain}&sz=32`];
+                    let tryCount = 0;
+                    function tryNext() {
+                        if (tryCount >= sources.length) {
+                            img.remove();
+                            sessionStorage.setItem(cacheKey, 'letter'); // 缓存失败结果
+                            showLetter();
+                            return;
+                        }
+                        img.src = sources[tryCount++];
                     }
-                    img.src = sources[tryCount]; tryCount++;
+                    img.onload = () => {
+                        if (!cached) sessionStorage.setItem(cacheKey, img.src); // 缓存成功URL
+                    };
+                    img.onerror = tryNext;
+                    tryNext();
+                    iconSpan.appendChild(img);
                 }
-                img.onload = () => {}; img.onerror = tryNext; tryNext(); iconSpan.appendChild(img);
             } else {
-                let ci = link.name.charCodeAt(0) % FAV_COLORS.length;
-                iconSpan.style.background = FAV_COLORS[ci]; iconSpan.style.color = '#fff'; iconSpan.style.fontSize = '12px'; iconSpan.style.fontWeight = '700'; iconSpan.textContent = firstChar;
+                showLetter();
             }
             return iconSpan;
         }
@@ -464,21 +494,64 @@
             return card;
         }
         let currentModalCallback = null;
+        // ── ① Modal：自动聚焦 / Enter提交 / Esc关闭 / Tab焦点锁定 ──
         function openModal(title, defaultValue, callback, isLinkMode = false) {
-            const modal = document.getElementById('modal'); modal.querySelector('#modalTitle').textContent = title;
-            const fields = modal.querySelector('#modalFields'); fields.innerHTML = '';
+            const modal = document.getElementById('modal');
+            const content = modal.querySelector('.modal-content');
+            modal.querySelector('#modalTitle').textContent = title;
+            const fields = modal.querySelector('#modalFields');
+            fields.innerHTML = '';
             if (isLinkMode) {
-                fields.innerHTML = `<label>网址：</label><input type="text" placeholder="https://..." value="${defaultValue.url || ''}" id="urlInput"><label>名称（留空自动生成）：</label><input type="text" placeholder="自动识别..." value="${defaultValue.name || ''}" id="nameInput">`;
-                currentModalCallback = () => { const url = document.getElementById('urlInput').value.trim(); if (!url) return false; callback(document.getElementById('nameInput').value.trim(), url); return true; };
+                fields.innerHTML = `<label>网址</label><input type="text" placeholder="https://..." value="${defaultValue.url || ''}" id="urlInput"><label style="margin-top:6px">名称（留空自动识别）</label><input type="text" placeholder="自动识别..." value="${defaultValue.name || ''}" id="nameInput">`;
+                currentModalCallback = () => {
+                    const url = document.getElementById('urlInput').value.trim();
+                    if (!url) { document.getElementById('urlInput').focus(); return false; }
+                    callback(document.getElementById('nameInput').value.trim(), url);
+                    return true;
+                };
             } else {
-                fields.innerHTML = `<input type="text" value="${defaultValue}" placeholder="请输入名称" id="nameInput">`;
-                currentModalCallback = () => { const val = document.getElementById('nameInput').value.trim(); if (!val) return false; callback(val); return true; };
+                fields.innerHTML = `<label>${title}</label><input type="text" value="${defaultValue}" placeholder="请输入名称" id="nameInput">`;
+                currentModalCallback = () => {
+                    const val = document.getElementById('nameInput').value.trim();
+                    if (!val) { document.getElementById('nameInput').focus(); return false; }
+                    callback(val);
+                    return true;
+                };
             }
             modal.style.display = 'flex';
+
+            // ✅ 自动聚焦第一个输入框
+            const firstInput = fields.querySelector('input');
+            if (firstInput) setTimeout(() => firstInput.focus(), 30);
+
             const closeModal = () => { modal.style.display = 'none'; };
-            modal.querySelector('#modalConfirm').onclick = () => { if (currentModalCallback && currentModalCallback()) closeModal(); };
+
+            modal.querySelector('#modalConfirm').onclick = () => {
+                if (currentModalCallback && currentModalCallback()) closeModal();
+            };
             modal.querySelector('#modalCancel').onclick = closeModal;
             modal.onclick = (e) => { if (e.target === modal) closeModal(); };
+
+            // ✅ Enter提交 / Esc关闭 / Tab锁定在modal内
+            if (modal._kh) modal.removeEventListener('keydown', modal._kh);
+            modal._kh = (e) => {
+                if (e.key === 'Enter' && e.target.tagName === 'INPUT') {
+                    e.preventDefault();
+                    if (currentModalCallback && currentModalCallback()) closeModal();
+                }
+                if (e.key === 'Escape') {
+                    e.stopPropagation();
+                    closeModal();
+                }
+                // Tab焦点锁定在modal内
+                if (e.key === 'Tab') {
+                    const focusable = [...content.querySelectorAll('input,button,select')].filter(el => !el.disabled);
+                    const first = focusable[0], last = focusable[focusable.length - 1];
+                    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+                    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+                }
+            };
+            modal.addEventListener('keydown', modal._kh);
         }
         function openLinkModal(link, callback, isNew = false) { const defaultValue = link ? { name: link.name, url: link.url } : { name: '', url: '' }; openModal(isNew ? '添加链接' : '编辑链接', defaultValue, callback, true); }
         function toggleEditMode() { editMode = !editMode; document.body.classList.toggle('edit-mode', editMode); document.getElementById('editModeBtn').classList.toggle('active', editMode); render(); }
@@ -494,7 +567,40 @@
         }
         function exportConfig() { const blob = new Blob([JSON.stringify(appData, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `startpage_backup_${new Date().toISOString().slice(0,10)}.json`; a.click(); }
         function importConfig(file) { const reader = new FileReader(); reader.onload = (e) => { try { const data = JSON.parse(e.target.result); if (data.tabs && Array.isArray(data.tabs)) { appData = data; saveData(); render(); alert('配置导入成功！'); } else alert('无效的配置文件'); } catch (ex) { alert('解析失败'); } }; reader.readAsText(file); }
-        document.addEventListener('keydown', (e) => { if (e.ctrlKey && e.key === 'k') { e.preventDefault(); document.getElementById('searchInput').focus(); } });
+        // ── ② 全局键盘快捷键 ────────────────────────────────────────
+        document.addEventListener('keydown', (e) => {
+            const tag = document.activeElement?.tagName?.toLowerCase();
+            const inInput = ['input','textarea','select'].includes(tag);
+            const modalOpen = document.getElementById('modal').style.display === 'flex';
+
+            // Esc：优先关闭 modal → 退出编辑模式 → 清除搜索框焦点
+            if (e.key === 'Escape') {
+                if (modalOpen) { document.getElementById('modal').style.display = 'none'; return; }
+                if (editMode) { toggleEditMode(); return; }
+                document.activeElement?.blur();
+                return;
+            }
+            // 以下快捷键在 modal 打开或输入框内时不触发
+            if (inInput || modalOpen) return;
+
+            // /  →  聚焦搜索框
+            if (e.key === '/') {
+                e.preventDefault();
+                document.getElementById('searchInput').focus();
+                return;
+            }
+            // Ctrl+K  →  聚焦搜索框（原快捷键保留）
+            if (e.ctrlKey && e.key === 'k') {
+                e.preventDefault();
+                document.getElementById('searchInput').focus();
+                return;
+            }
+            // E  →  切换编辑模式
+            if ((e.key === 'e' || e.key === 'E') && !e.ctrlKey && !e.metaKey) {
+                toggleEditMode();
+                return;
+            }
+        });
         function init() {
             loadData();
             const savedTheme = localStorage.getItem('startpage_theme'); if (savedTheme === 'dark') { isDark = true; document.body.classList.add('dark'); }

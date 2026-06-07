@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>起始页 · 灰调极简（可编辑）</title>
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js">
+    </script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -38,12 +39,9 @@
         .small-btn:hover { background: #e8e8e8; color: #333; }
         body.dark .small-btn:hover { background: #3a3a3a; color: #fff; }
 
-        /* 主内容区 */
         .categories-grid { max-width: 1400px; margin: 30px auto 0; padding: 0 20px 40px; display: flex; flex-direction: column; gap: 28px; }
-
         .category-block { display: flex; align-items: flex-start; gap: 24px; }
 
-        /* 拖拽手柄 */
         .drag-handle { cursor: grab; color: #aaa; font-size: 20px; margin-right: 8px; display: none; align-items: center; line-height: 1; }
         body.edit-mode .drag-handle { display: inline-flex; }
 
@@ -61,13 +59,13 @@
         .link-card:hover { background: #e8e8e8; transform: translateY(-1px); box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
         body.dark .link-card { background: #2a2a2a; color: #e0e0e0; }
         body.dark .link-card:hover { background: #3a3a3a; }
-        
-        /* 拖拽时的幽灵元素占位样式 */
+
         .sortable-ghost { opacity: 0.4; background: #e8e8e8; outline: 2px dashed #4a90d9; }
         body.dark .sortable-ghost { background: #333; }
         .category-ghost { opacity: 0.4; outline: 2px dashed #888; outline-offset: 4px; border-radius: 8px; }
 
-        .link-icon { width: 22px; height: 22px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
+        .link-icon { width: 22px; height: 22px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; overflow: hidden; }
+        .link-icon img { width: 100%; height: 100%; object-fit: contain; display: block; }
         .link-name { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .link-card-actions { display: none; gap: 2px; margin-left: 4px; }
         body.edit-mode .link-card-actions { display: flex; }
@@ -136,25 +134,111 @@
 
     <script>
         function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
-        async function fetchTitleFromUrl(url) {
+
+        // ===== 智能名称生成（替换失败的代理抓取） =====
+        function generateNameFromUrl(url) {
             try {
-                let validUrl = new URL(url);
-                if (!validUrl.protocol.startsWith('http')) return null;
-                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(validUrl.href)}`;
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000);
-                const res = await fetch(proxyUrl, { signal: controller.signal });
-                clearTimeout(timeoutId);
-                if (!res.ok) return null;
-                const data = await res.json();
-                const match = data.contents.match(/<title[^>]*>([^<]*)<\/title>/i);
-                if (match && match[1]) {
-                    let title = match[1].trim();
-                    if (title.length > 80) title = title.slice(0,80)+'…';
-                    return title;
+                const host = new URL(url).hostname.replace(/^www\./, '');
+                // 已知网站映射表
+                const KNOWN_SITES = {
+                    'chat.openai.com': 'ChatGPT',
+                    'chatgpt.com': 'ChatGPT',
+                    'deepseek.com': 'DeepSeek',
+                    'chat.deepseek.com': 'DeepSeek',
+                    'gemini.google.com': 'Gemini',
+                    'claude.ai': 'Claude',
+                    'github.com': 'GitHub',
+                    'youtube.com': 'YouTube',
+                    'netflix.com': 'Netflix',
+                    'twitch.tv': 'Twitch',
+                    'weibo.com': '微博',
+                    'bilibili.com': '哔哩哔哩',
+                    'zhihu.com': '知乎',
+                    'open.spotify.com': 'Spotify',
+                    'mail.qq.com': 'QQ邮箱',
+                    'outlook.live.com': 'Outlook',
+                    'map.baidu.com': '百度地图',
+                    'weather.com': '天气',
+                    'calendar.google.com': '日历',
+                    'tophub.today': '今日热榜',
+                    'aidazahuopu.com': '爱达杂货铺',
+                    'yandex.com': 'Yandex',
+                    'tongyi.aliyun.com': '通义千问',
+                    'cursor.sh': 'Cursor',
+                    'npmjs.com': 'npm',
+                    'caniuse.com': 'Can I Use',
+                    'developer.mozilla.org': 'MDN',
+                    'stackoverflow.com': 'Stack Overflow',
+                    'deepl.com': 'DeepL',
+                    'excalidraw.com': 'Excalidraw',
+                    'regexr.com': 'RegExr',
+                    'jsonformatter.curiousconcept.com': 'JSON格式化',
+                    'guancha.cn': '观察者网',
+                    'huanqiu.com': '环球网',
+                    'itdog.cn': 'itdog'
+                };
+                if (KNOWN_SITES[host]) return KNOWN_SITES[host];
+                // 智能提取：去掉常见后缀，取核心部分
+                const core = host.replace(/\.(com|net|org|cn|io|ai|sh|co|me|gov|edu)\.?[a-z]*$/i, '');
+                const parts = core.split('.');
+                const meaningful = parts[parts.length - 1];
+                if (meaningful && meaningful.length > 1) {
+                    return meaningful.charAt(0).toUpperCase() + meaningful.slice(1);
                 }
-                return null;
-            } catch(e) { return null; }
+                return host;
+            } catch(e) {
+                return '未命名';
+            }
+        }
+
+        // ===== 多重图标源（DuckDuckGo → Google → 首字母色块） =====
+        function createIconElement(link) {
+            const iconSpan = document.createElement('span');
+            iconSpan.className = 'link-icon';
+            const firstChar = link.name.charAt(0).toUpperCase();
+            const FAV_COLORS = ['#3b82f6','#8b5cf6','#06b6d4','#22c55e','#f97316','#ec4899','#ef4444','#0ea5e9'];
+
+            let domain = '';
+            let validUrl = false;
+            try { domain = new URL(link.url).hostname; validUrl = true; } catch {}
+
+            if (validUrl && domain && link.url !== '#') {
+                const img = document.createElement('img');
+                let tryCount = 0;
+                const sources = [
+                    `https://icons.duckduckgo.com/ip3/${domain}.ico`,
+                    `https://www.google.com/s2/favicons?domain=${domain}&sz=32`
+                ];
+
+                function tryNext() {
+                    if (tryCount >= sources.length) {
+                        // 所有图标源都失败，显示首字母色块
+                        img.remove();
+                        let ci = (domain + link.name).charCodeAt(0) % FAV_COLORS.length;
+                        iconSpan.style.background = FAV_COLORS[ci];
+                        iconSpan.style.color = '#fff';
+                        iconSpan.style.fontSize = '12px';
+                        iconSpan.style.fontWeight = '700';
+                        iconSpan.textContent = firstChar;
+                        return;
+                    }
+                    img.src = sources[tryCount];
+                    tryCount++;
+                }
+
+                img.onload = () => { /* 加载成功，什么都不做 */ };
+                img.onerror = tryNext;
+                tryNext();
+                iconSpan.appendChild(img);
+            } else {
+                let ci = link.name.charCodeAt(0) % FAV_COLORS.length;
+                iconSpan.style.background = FAV_COLORS[ci];
+                iconSpan.style.color = '#fff';
+                iconSpan.style.fontSize = '12px';
+                iconSpan.style.fontWeight = '700';
+                iconSpan.textContent = firstChar;
+            }
+            return iconSpan;
         }
 
         const defaultData = {
@@ -163,12 +247,26 @@
                     { id: uid(), name: '社交', links: [
                         { id: uid(), name: '爱达杂货铺', url: 'https://aidazahuopu.com' },
                         { id: uid(), name: '今日热榜', url: 'https://tophub.today' },
-                        { id: uid(), name: 'spotify', url: 'https://open.spotify.com' }
+                        { id: uid(), name: 'Spotify', url: 'https://open.spotify.com' },
+                        { id: uid(), name: '微博', url: 'https://weibo.com' },
+                        { id: uid(), name: 'Yandex', url: 'https://yandex.com' }
                     ] },
                     { id: uid(), name: 'AI', links: [
                         { id: uid(), name: 'ChatGPT', url: 'https://chat.openai.com' },
-                        { id: uid(), name: 'deepseek', url: 'https://deepseek.com' },
-                        { id: uid(), name: 'gemini', url: 'https://gemini.google.com' }
+                        { id: uid(), name: 'DeepSeek', url: 'https://deepseek.com' },
+                        { id: uid(), name: 'Gemini', url: 'https://gemini.google.com' },
+                        { id: uid(), name: 'Claude', url: 'https://claude.ai' },
+                        { id: uid(), name: '通义千问', url: 'https://tongyi.aliyun.com' },
+                        { id: uid(), name: 'Cursor', url: 'https://cursor.sh' }
+                    ] },
+                    { id: uid(), name: '便捷', links: [
+                        { id: uid(), name: '百度地图', url: 'https://map.baidu.com' },
+                        { id: uid(), name: '天气', url: 'https://weather.com' },
+                        { id: uid(), name: '日历', url: 'https://calendar.google.com' }
+                    ] },
+                    { id: uid(), name: '门户', links: [
+                        { id: uid(), name: '观察者网', url: 'https://www.guancha.cn' },
+                        { id: uid(), name: '环球网', url: 'https://www.huanqiu.com' }
                     ] }
                 ] }
             ],
@@ -178,7 +276,7 @@
         let appData = JSON.parse(JSON.stringify(defaultData));
         let editMode = false;
         let isDark = false;
-        const STORAGE_KEY = 'startpage_editable_v2';
+        const STORAGE_KEY = 'startpage_editable_v3'; // 使用新 key 避免旧数据冲突
 
         function loadData() {
             const saved = localStorage.getItem(STORAGE_KEY);
@@ -190,38 +288,27 @@
         }
         function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); }
 
-        // 核心同步函数：将拖拽后的 DOM 顺序反向同步回数据
         function syncDataFromDOM() {
             const activeTab = appData.tabs.find(t => t.id === appData.activeTabId);
             if (!activeTab) return;
-
             const newCategories = [];
-            // 遍历当前 DOM 里的分类区块
             document.querySelectorAll('.category-block').forEach(catBlock => {
                 const catId = catBlock.dataset.catId;
                 let origCat = activeTab.categories.find(c => c.id === catId);
                 if (!origCat) return;
-
                 const newLinks = [];
-                // 遍历该分类下的所有链接
                 catBlock.querySelectorAll('.link-card').forEach(linkCard => {
                     const linkId = linkCard.dataset.linkId;
-                    // 在所有分类中寻找这个链接（因为它可能是从其他分类拖过来的）
                     let origLink = null;
                     for (let c of activeTab.categories) {
                         origLink = c.links.find(l => l.id === linkId);
                         if (origLink) break;
                     }
-                    if (origLink) {
-                        newLinks.push(origLink);
-                    }
+                    if (origLink) newLinks.push(origLink);
                 });
-
-                // 更新当前分类里的链接并加入新数组
                 origCat.links = newLinks;
                 newCategories.push(origCat);
             });
-
             activeTab.categories = newCategories;
             saveData();
         }
@@ -242,7 +329,7 @@
                     const renameBtn = document.createElement('button'); renameBtn.textContent = '✎'; renameBtn.className = 'small-btn';
                     renameBtn.addEventListener('click', (e) => { e.stopPropagation(); openModal('重命名标签', tab.name, (newName) => { if (newName && newName.trim()) { tab.name = newName.trim(); render(); saveData(); } }); });
                     const delBtn = document.createElement('button'); delBtn.textContent = '✖'; delBtn.className = 'small-btn';
-                    delBtn.addEventListener('click', (e) => { e.stopPropagation(); if (confirm(`确定删除标签“${tab.name}”及其所有分类和链接吗？`)) { const index = appData.tabs.findIndex(t => t.id === tab.id); appData.tabs.splice(index, 1); if (appData.tabs.length === 0) appData.tabs = [{ id: uid(), name: '日常', categories: [] }]; if (appData.activeTabId === tab.id) appData.activeTabId = appData.tabs[0].id; render(); saveData(); } });
+                    delBtn.addEventListener('click', (e) => { e.stopPropagation(); if (confirm(`确定删除标签"${tab.name}"及其所有分类和链接吗？`)) { const index = appData.tabs.findIndex(t => t.id === tab.id); appData.tabs.splice(index, 1); if (appData.tabs.length === 0) appData.tabs = [{ id: uid(), name: '日常', categories: [] }]; if (appData.activeTabId === tab.id) appData.activeTabId = appData.tabs[0].id; render(); saveData(); } });
                     editSpan.appendChild(renameBtn); editSpan.appendChild(delBtn); tabDiv.appendChild(editSpan);
                 }
                 tabBar.appendChild(tabDiv);
@@ -269,21 +356,18 @@
                 return;
             }
 
-            activeTab.categories.forEach((cat, index) => {
+            activeTab.categories.forEach((cat) => {
                 const block = document.createElement('div');
                 block.className = 'category-block';
                 block.dataset.catId = cat.id;
 
-                // 分类名称与手柄
                 const nameDiv = document.createElement('div');
                 nameDiv.className = 'category-name';
-                
                 const handle = document.createElement('span');
                 handle.className = 'drag-handle';
                 handle.innerHTML = '⋮⋮';
                 handle.title = '拖拽排序分类';
                 nameDiv.appendChild(handle);
-
                 const nameSpan = document.createElement('span');
                 nameSpan.textContent = cat.name;
                 nameDiv.appendChild(nameSpan);
@@ -292,24 +376,28 @@
                     const btnGroup = document.createElement('div');
                     btnGroup.className = 'category-edit-btns';
                     const renameBtn = document.createElement('button'); renameBtn.textContent = '✎'; renameBtn.addEventListener('click', (e) => { e.stopPropagation(); openModal('重命名分类', cat.name, (newName) => { if (newName && newName.trim()) { cat.name = newName.trim(); render(); saveData(); } }); });
-                    const delBtn = document.createElement('button'); delBtn.textContent = '✖'; delBtn.addEventListener('click', (e) => { e.stopPropagation(); if (confirm(`删除分类“${cat.name}”及其所有链接？`)) { const idx = activeTab.categories.findIndex(c => c.id === cat.id); activeTab.categories.splice(idx, 1); render(); saveData(); } });
+                    const delBtn = document.createElement('button'); delBtn.textContent = '✖'; delBtn.addEventListener('click', (e) => { e.stopPropagation(); if (confirm(`删除分类"${cat.name}"及其所有链接？`)) { const idx = activeTab.categories.findIndex(c => c.id === cat.id); activeTab.categories.splice(idx, 1); render(); saveData(); } });
                     btnGroup.appendChild(renameBtn); btnGroup.appendChild(delBtn);
                     nameDiv.appendChild(btnGroup);
                 }
                 block.appendChild(nameDiv);
 
-                // 链接行容器
                 const linksRow = document.createElement('div');
                 linksRow.className = 'links-row';
                 linksRow.dataset.catId = cat.id;
-
-                cat.links.forEach(link => {
-                    linksRow.appendChild(createLinkCard(cat, link));
-                });
+                cat.links.forEach(link => { linksRow.appendChild(createLinkCard(cat, link)); });
 
                 if (editMode) {
                     const addLinkBtn = document.createElement('button'); addLinkBtn.textContent = '+ 添加链接'; addLinkBtn.className = 'add-link-btn';
-                    addLinkBtn.addEventListener('click', () => { openLinkModal(null, async (newName, newUrl) => { if (!newUrl) return; let title = newName; if (!title) { title = await fetchTitleFromUrl(newUrl); if (!title) { try { title = new URL(newUrl).hostname.replace(/^www\./, ''); } catch(e) { title = '未命名'; } } } cat.links.push({ id: uid(), name: title, url: newUrl }); render(); saveData(); }, true); });
+                    addLinkBtn.addEventListener('click', () => {
+                        openLinkModal(null, (newName, newUrl) => {
+                            if (!newUrl) return;
+                            let title = newName || generateNameFromUrl(newUrl);
+                            cat.links.push({ id: uid(), name: title, url: newUrl });
+                            render();
+                            saveData();
+                        }, true);
+                    });
                     linksRow.appendChild(addLinkBtn);
                 }
                 block.appendChild(linksRow);
@@ -321,35 +409,23 @@
                 addCatBtn.addEventListener('click', () => { openModal('新建分类', '', (newName) => { if (newName && newName.trim()) { activeTab.categories.push({ id: uid(), name: newName.trim(), links: [] }); render(); saveData(); } }); });
                 container.appendChild(addCatBtn);
 
-                // ==============================
-                // 绑定 SortableJS 拖拽事件
-                // ==============================
-
-                // 1. 分类容器的上下拖拽排序
                 new Sortable(container, {
                     animation: 150,
-                    handle: '.drag-handle', // 仅点击手柄时触发
+                    handle: '.drag-handle',
                     ghostClass: 'category-ghost',
                     draggable: '.category-block',
-                    filter: '.add-category-btn', // 忽略添加按钮
-                    onEnd: () => {
-                        syncDataFromDOM(); // 同步回数据
-                        render(); // 重绘以恢复“添加”按钮等元素位置
-                    }
+                    filter: '.add-category-btn',
+                    onEnd: () => { syncDataFromDOM(); render(); }
                 });
 
-                // 2. 每个分类内部的链接拖拽排位 (支持跨分类)
                 document.querySelectorAll('.links-row').forEach(row => {
                     new Sortable(row, {
-                        group: 'shared-links', // 设置相同的组名，允许在各分类之间跨区拖拽
+                        group: 'shared-links',
                         animation: 150,
                         ghostClass: 'sortable-ghost',
                         draggable: '.link-card',
-                        filter: '.add-link-btn', // 忽略添加按钮
-                        onEnd: () => {
-                            syncDataFromDOM(); // 同步回数据
-                            render(); // 重绘以恢复“添加”按钮位置
-                        }
+                        filter: '.add-link-btn',
+                        onEnd: () => { syncDataFromDOM(); render(); }
                     });
                 });
             }
@@ -360,25 +436,11 @@
             card.className = 'link-card';
             card.dataset.linkId = link.id;
 
-            const iconSpan = document.createElement('span');
-            iconSpan.className = 'link-icon';
-            const firstChar = link.name.charAt(0).toUpperCase();
-            const FAV_COLORS = ['#3b82f6','#8b5cf6','#06b6d4','#22c55e','#f97316','#ec4899','#ef4444','#0ea5e9'];
-            let domain = '';
-            try { domain = new URL(link.url).hostname; } catch {}
-            if (domain && link.url !== '#') {
-                const img = document.createElement('img');
-                img.style.cssText = 'width:100%;height:100%;object-fit:contain;';
-                img.src = `https://icons.duckduckgo.com/ip3/${domain}.ico`;
-                img.onerror = () => { img.remove(); let ci = domain.charCodeAt(0) % FAV_COLORS.length; iconSpan.style.background = FAV_COLORS[ci]; iconSpan.style.color = '#fff'; iconSpan.style.fontSize = '12px'; iconSpan.style.fontWeight = '700'; iconSpan.textContent = firstChar; };
-                iconSpan.appendChild(img);
-            } else {
-                let ci = link.name.charCodeAt(0) % FAV_COLORS.length;
-                iconSpan.style.background = FAV_COLORS[ci]; iconSpan.style.color = '#fff'; iconSpan.style.fontSize = '12px'; iconSpan.style.fontWeight = '700'; iconSpan.textContent = firstChar;
-            }
+            card.appendChild(createIconElement(link));
+
             const nameSpan = document.createElement('span');
-            nameSpan.className = 'link-name'; nameSpan.textContent = link.name;
-            card.appendChild(iconSpan);
+            nameSpan.className = 'link-name';
+            nameSpan.textContent = link.name;
             card.appendChild(nameSpan);
 
             card.addEventListener('click', (e) => {
@@ -390,7 +452,7 @@
                 const actions = document.createElement('div');
                 actions.className = 'link-card-actions';
                 const editBtn = document.createElement('button'); editBtn.textContent = '✎'; editBtn.addEventListener('click', (e) => { e.stopPropagation(); openLinkModal(link, (newName, newUrl) => { if (newName) link.name = newName; if (newUrl) link.url = newUrl; render(); saveData(); }); });
-                const delBtn = document.createElement('button'); delBtn.textContent = '✖'; delBtn.addEventListener('click', (e) => { e.stopPropagation(); if (confirm(`删除链接“${link.name}”？`)) { const idx = cat.links.findIndex(l => l.id === link.id); cat.links.splice(idx, 1); render(); saveData(); } });
+                const delBtn = document.createElement('button'); delBtn.textContent = '✖'; delBtn.addEventListener('click', (e) => { e.stopPropagation(); if (confirm(`删除链接"${link.name}"？`)) { const idx = cat.links.findIndex(l => l.id === link.id); cat.links.splice(idx, 1); render(); saveData(); } });
                 actions.appendChild(editBtn); actions.appendChild(delBtn);
                 card.appendChild(actions);
             }
@@ -407,8 +469,8 @@
             if (isLinkMode) {
                 const urlLabel = document.createElement('label'); urlLabel.textContent = '网址：';
                 const urlInput = document.createElement('input'); urlInput.type = 'text'; urlInput.placeholder = 'https://...'; urlInput.value = defaultValue.url || '';
-                const nameLabel = document.createElement('label'); nameLabel.textContent = '名称（可选，留空自动获取）：';
-                const nameInput = document.createElement('input'); nameInput.type = 'text'; nameInput.placeholder = '链接名称'; nameInput.value = defaultValue.name || '';
+                const nameLabel = document.createElement('label'); nameLabel.textContent = '名称（留空自动生成）：';
+                const nameInput = document.createElement('input'); nameInput.type = 'text'; nameInput.placeholder = '自动识别...'; nameInput.value = defaultValue.name || '';
                 modalFields.appendChild(urlLabel); modalFields.appendChild(urlInput); modalFields.appendChild(nameLabel); modalFields.appendChild(nameInput);
                 currentModalCallback = () => { const url = urlInput.value.trim(); if (!url) return false; callback(nameInput.value.trim(), url); return true; };
             } else {
@@ -431,12 +493,7 @@
             openModal(isNew ? '添加链接' : '编辑链接', defaultValue, callback, true);
         }
 
-        function toggleEditMode() { 
-            editMode = !editMode; 
-            document.body.classList.toggle('edit-mode', editMode); 
-            document.getElementById('editModeBtn').classList.toggle('active', editMode); 
-            render(); // 重绘会重新绑定或销毁拖拽逻辑
-        }
+        function toggleEditMode() { editMode = !editMode; document.body.classList.toggle('edit-mode', editMode); document.getElementById('editModeBtn').classList.toggle('active', editMode); render(); }
         function toggleTheme() { isDark = !isDark; if (isDark) document.body.classList.add('dark'); else document.body.classList.remove('dark'); localStorage.setItem('startpage_theme', isDark ? 'dark' : 'light'); }
 
         function performSearch() {

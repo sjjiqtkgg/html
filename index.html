@@ -135,59 +135,48 @@
     <script>
         function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
 
-        // ===== 智能名称生成（替换失败的代理抓取） =====
-        function generateNameFromUrl(url) {
+        // ===== 根据域名智能生成名称（替换原来的 fetchTitleFromUrl） =====
+        function fetchTitleFromUrl(url) {
             try {
-                const host = new URL(url).hostname.replace(/^www\./, '');
-                // 已知网站映射表
-                const KNOWN_SITES = {
-                    'chat.openai.com': 'ChatGPT',
-                    'chatgpt.com': 'ChatGPT',
-                    'deepseek.com': 'DeepSeek',
-                    'chat.deepseek.com': 'DeepSeek',
-                    'gemini.google.com': 'Gemini',
-                    'claude.ai': 'Claude',
-                    'github.com': 'GitHub',
-                    'youtube.com': 'YouTube',
-                    'netflix.com': 'Netflix',
-                    'twitch.tv': 'Twitch',
-                    'weibo.com': '微博',
-                    'bilibili.com': '哔哩哔哩',
-                    'zhihu.com': '知乎',
-                    'open.spotify.com': 'Spotify',
-                    'mail.qq.com': 'QQ邮箱',
-                    'outlook.live.com': 'Outlook',
-                    'map.baidu.com': '百度地图',
-                    'weather.com': '天气',
-                    'calendar.google.com': '日历',
-                    'tophub.today': '今日热榜',
-                    'aidazahuopu.com': '爱达杂货铺',
-                    'yandex.com': 'Yandex',
-                    'tongyi.aliyun.com': '通义千问',
-                    'cursor.sh': 'Cursor',
-                    'npmjs.com': 'npm',
-                    'caniuse.com': 'Can I Use',
-                    'developer.mozilla.org': 'MDN',
-                    'stackoverflow.com': 'Stack Overflow',
-                    'deepl.com': 'DeepL',
-                    'excalidraw.com': 'Excalidraw',
-                    'regexr.com': 'RegExr',
-                    'jsonformatter.curiousconcept.com': 'JSON格式化',
-                    'guancha.cn': '观察者网',
-                    'huanqiu.com': '环球网',
-                    'itdog.cn': 'itdog'
+                const host = new URL(url).hostname
+                    .replace(/^www\./i, '')
+                    .replace(/\.(com|net|org|cn|io|ai|app|dev)$/i, '');
+
+                const specialNames = {
+                    "chatgpt": "ChatGPT",
+                    "openai": "OpenAI",
+                    "github": "GitHub",
+                    "deepseek": "DeepSeek",
+                    "claude": "Claude",
+                    "anthropic": "Claude",
+                    "gemini": "Gemini",
+                    "google": "Google",
+                    "youtube": "YouTube",
+                    "twitter": "Twitter",
+                    "x": "X",
+                    "spotify": "Spotify",
+                    "bilibili": "Bilibili",
+                    "weibo": "微博",
+                    "qq": "QQ",
+                    "baidu": "百度",
+                    "aliyun": "阿里云",
+                    "tongyi": "通义千问",
+                    "cursor": "Cursor"
                 };
-                if (KNOWN_SITES[host]) return KNOWN_SITES[host];
-                // 智能提取：去掉常见后缀，取核心部分
-                const core = host.replace(/\.(com|net|org|cn|io|ai|sh|co|me|gov|edu)\.?[a-z]*$/i, '');
-                const parts = core.split('.');
-                const meaningful = parts[parts.length - 1];
-                if (meaningful && meaningful.length > 1) {
-                    return meaningful.charAt(0).toUpperCase() + meaningful.slice(1);
+
+                const key = host.toLowerCase();
+                if (specialNames[key]) {
+                    return specialNames[key];
                 }
-                return host;
-            } catch(e) {
-                return '未命名';
+
+                return host
+                    .split('.')
+                    .shift()
+                    .replace(/-/g, ' ')
+                    .replace(/\b\w/g, s => s.toUpperCase());
+
+            } catch (e) {
+                return "未命名";
             }
         }
 
@@ -226,7 +215,7 @@
                     tryCount++;
                 }
 
-                img.onload = () => { /* 加载成功，什么都不做 */ };
+                img.onload = () => {};
                 img.onerror = tryNext;
                 tryNext();
                 iconSpan.appendChild(img);
@@ -276,7 +265,7 @@
         let appData = JSON.parse(JSON.stringify(defaultData));
         let editMode = false;
         let isDark = false;
-        const STORAGE_KEY = 'startpage_editable_v3'; // 使用新 key 避免旧数据冲突
+        const STORAGE_KEY = 'startpage_editable_v3';
 
         function loadData() {
             const saved = localStorage.getItem(STORAGE_KEY);
@@ -392,7 +381,10 @@
                     addLinkBtn.addEventListener('click', () => {
                         openLinkModal(null, (newName, newUrl) => {
                             if (!newUrl) return;
-                            let title = newName || generateNameFromUrl(newUrl);
+                            let title = newName?.trim();
+                            if (!title) {
+                                title = fetchTitleFromUrl(newUrl);
+                            }
                             cat.links.push({ id: uid(), name: title, url: newUrl });
                             render();
                             saveData();

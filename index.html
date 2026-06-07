@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>起始页 · 灰调极简（可编辑）</title>
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js">
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -21,13 +20,32 @@
         .search-input { flex: 1; padding: 12px; border: none; outline: none; font-size: 14px; }
         .search-btn { padding: 12px 20px; border: none; background: transparent; cursor: pointer; color: #666; }
 
-        .toolbar { position: fixed; top: 20px; right: 20px; display: flex; gap: 10px; z-index: 100; }
-        .tool-btn { background: #fff; border: 1px solid #ddd; border-radius: 20px; padding: 6px 14px; font-size: 13px; cursor: pointer; color: #555; transition: all 0.2s; }
+        /* 工具栏 */
+        .toolbar {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+            flex-wrap: wrap;
+        }
+        .tool-btn {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            padding: 6px 14px;
+            font-size: 13px;
+            cursor: pointer;
+            color: #555;
+            transition: all 0.2s;
+        }
         .tool-btn:hover { background: #e8e8e8; }
         .tool-btn.active { background: #333; color: #fff; border-color: #333; }
         body.dark .tool-btn { background: #2a2a2a; border-color: #444; color: #ccc; }
         body.dark .tool-btn.active { background: #e0e0e0; color: #1a1a1a; }
 
+        /* 标签栏 */
         .tab-bar { display: flex; justify-content: center; gap: 40px; padding: 20px 0; background: #fff; border-bottom: 1px solid #e0e0e0; }
         .tab-item { padding: 10px 20px; cursor: pointer; font-size: 16px; color: #666; position: relative; transition: color 0.3s; }
         .tab-item:hover { color: #333; }
@@ -39,12 +57,16 @@
         .small-btn:hover { background: #e8e8e8; color: #333; }
         body.dark .small-btn:hover { background: #3a3a3a; color: #fff; }
 
+        /* 分类网格 */
         .categories-grid { max-width: 1400px; margin: 30px auto 0; padding: 0 20px 40px; display: flex; flex-direction: column; gap: 28px; }
-        .category-block { display: flex; align-items: flex-start; gap: 24px; }
-
+        .category-block {
+            display: flex;
+            align-items: flex-start;
+            gap: 24px;
+            transition: all 0.2s ease; /* 拖拽动画 */
+        }
         .drag-handle { cursor: grab; color: #aaa; font-size: 20px; margin-right: 8px; display: none; align-items: center; line-height: 1; }
         body.edit-mode .drag-handle { display: inline-flex; }
-
         .category-name { width: 110px; flex-shrink: 0; font-size: 16px; font-weight: 500; color: #555; padding-top: 3px; display: flex; align-items: center; gap: 8px; }
         body.dark .category-name { color: #ccc; }
         .category-edit-btns { display: none; gap: 4px; }
@@ -55,7 +77,20 @@
 
         .links-row { flex: 1; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; min-height: 32px; }
 
-        .link-card { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; background: #fff; border-radius: 8px; transition: all 0.2s; cursor: pointer; text-decoration: none; color: #333; white-space: nowrap; user-select: none; }
+        .link-card {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            background: #fff;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            text-decoration: none;
+            color: #333;
+            white-space: nowrap;
+            user-select: none;
+        }
         .link-card:hover { background: #e8e8e8; transform: translateY(-1px); box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
         body.dark .link-card { background: #2a2a2a; color: #e0e0e0; }
         body.dark .link-card:hover { background: #3a3a3a; }
@@ -98,12 +133,18 @@
         .modal-buttons button { padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; }
         .modal-buttons .confirm { background: #333; color: #fff; }
         .modal-buttons .cancel { background: #e0e0e0; }
+
+        /* 导出导入隐藏文件输入 */
+        #importFileInput { display: none; }
     </style>
 </head>
 <body>
     <div class="toolbar">
         <button class="tool-btn" id="editModeBtn">✎ 编辑</button>
         <button class="tool-btn" id="themeToggleBtn">🌓 深色</button>
+        <button class="tool-btn" id="exportBtn" title="导出配置">⬇️ 导出</button>
+        <button class="tool-btn" id="importBtn" title="导入配置">⬆️ 导入</button>
+        <input type="file" id="importFileInput" accept=".json">
     </div>
 
     <div class="search-container">
@@ -135,52 +176,24 @@
     <script>
         function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
 
-        // ===== 根据域名智能生成名称（替换原来的 fetchTitleFromUrl） =====
+        // ===== 根据域名智能生成名称 =====
         function fetchTitleFromUrl(url) {
             try {
-                const host = new URL(url).hostname
-                    .replace(/^www\./i, '')
-                    .replace(/\.(com|net|org|cn|io|ai|app|dev)$/i, '');
-
+                const host = new URL(url).hostname.replace(/^www\./i, '').replace(/\.(com|net|org|cn|io|ai|app|dev)$/i, '');
                 const specialNames = {
-                    "chatgpt": "ChatGPT",
-                    "openai": "OpenAI",
-                    "github": "GitHub",
-                    "deepseek": "DeepSeek",
-                    "claude": "Claude",
-                    "anthropic": "Claude",
-                    "gemini": "Gemini",
-                    "google": "Google",
-                    "youtube": "YouTube",
-                    "twitter": "Twitter",
-                    "x": "X",
-                    "spotify": "Spotify",
-                    "bilibili": "Bilibili",
-                    "weibo": "微博",
-                    "qq": "QQ",
-                    "baidu": "百度",
-                    "aliyun": "阿里云",
-                    "tongyi": "通义千问",
-                    "cursor": "Cursor"
+                    "chatgpt": "ChatGPT", "openai": "OpenAI", "github": "GitHub", "deepseek": "DeepSeek",
+                    "claude": "Claude", "anthropic": "Claude", "gemini": "Gemini", "google": "Google",
+                    "youtube": "YouTube", "twitter": "Twitter", "x": "X", "spotify": "Spotify",
+                    "bilibili": "Bilibili", "weibo": "微博", "qq": "QQ", "baidu": "百度",
+                    "aliyun": "阿里云", "tongyi": "通义千问", "cursor": "Cursor"
                 };
-
                 const key = host.toLowerCase();
-                if (specialNames[key]) {
-                    return specialNames[key];
-                }
-
-                return host
-                    .split('.')
-                    .shift()
-                    .replace(/-/g, ' ')
-                    .replace(/\b\w/g, s => s.toUpperCase());
-
-            } catch (e) {
-                return "未命名";
-            }
+                if (specialNames[key]) return specialNames[key];
+                return host.split('.').shift().replace(/-/g, ' ').replace(/\b\w/g, s => s.toUpperCase());
+            } catch (e) { return "未命名"; }
         }
 
-        // ===== 多重图标源（DuckDuckGo → Google → 首字母色块） =====
+        // ===== 多重图标源 =====
         function createIconElement(link) {
             const iconSpan = document.createElement('span');
             iconSpan.className = 'link-icon';
@@ -201,7 +214,6 @@
 
                 function tryNext() {
                     if (tryCount >= sources.length) {
-                        // 所有图标源都失败，显示首字母色块
                         img.remove();
                         let ci = (domain + link.name).charCodeAt(0) % FAV_COLORS.length;
                         iconSpan.style.background = FAV_COLORS[ci];
@@ -230,6 +242,7 @@
             return iconSpan;
         }
 
+        // ===== 默认数据 =====
         const defaultData = {
             tabs: [
                 { id: uid(), name: '日常', categories: [
@@ -272,11 +285,13 @@
             if (saved) {
                 try { const parsed = JSON.parse(saved); if (parsed.tabs && parsed.tabs.length) appData = parsed; } catch(e) {}
             }
-            let activeTab = appData.tabs.find(t => t.id === appData.activeTabId);
-            if (!activeTab && appData.tabs.length) { activeTab = appData.tabs[0]; appData.activeTabId = activeTab.id; }
+            if (!appData.tabs.find(t => t.id === appData.activeTabId) && appData.tabs.length) {
+                appData.activeTabId = appData.tabs[0].id;
+            }
         }
         function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); }
 
+        // 同步 DOM 到数据
         function syncDataFromDOM() {
             const activeTab = appData.tabs.find(t => t.id === appData.activeTabId);
             if (!activeTab) return;
@@ -289,10 +304,7 @@
                 catBlock.querySelectorAll('.link-card').forEach(linkCard => {
                     const linkId = linkCard.dataset.linkId;
                     let origLink = null;
-                    for (let c of activeTab.categories) {
-                        origLink = c.links.find(l => l.id === linkId);
-                        if (origLink) break;
-                    }
+                    for (let c of activeTab.categories) origLink = c.links.find(l => l.id === linkId);
                     if (origLink) newLinks.push(origLink);
                 });
                 origCat.links = newLinks;
@@ -381,10 +393,9 @@
                     addLinkBtn.addEventListener('click', () => {
                         openLinkModal(null, (newName, newUrl) => {
                             if (!newUrl) return;
-                            let title = newName?.trim();
-                            if (!title) {
-                                title = fetchTitleFromUrl(newUrl);
-                            }
+                            // 自动补全 https://
+                            if (!/^https?:\/\//i.test(newUrl)) newUrl = 'https://' + newUrl;
+                            let title = newName?.trim() || fetchTitleFromUrl(newUrl);
                             cat.links.push({ id: uid(), name: title, url: newUrl });
                             render();
                             saveData();
@@ -401,6 +412,7 @@
                 addCatBtn.addEventListener('click', () => { openModal('新建分类', '', (newName) => { if (newName && newName.trim()) { activeTab.categories.push({ id: uid(), name: newName.trim(), links: [] }); render(); saveData(); } }); });
                 container.appendChild(addCatBtn);
 
+                // Sortable 实例
                 new Sortable(container, {
                     animation: 150,
                     handle: '.drag-handle',
@@ -427,9 +439,10 @@
             const card = document.createElement('div');
             card.className = 'link-card';
             card.dataset.linkId = link.id;
+            // 编辑模式才可拖拽
+            card.draggable = editMode;
 
             card.appendChild(createIconElement(link));
-
             const nameSpan = document.createElement('span');
             nameSpan.className = 'link-name';
             nameSpan.textContent = link.name;
@@ -451,46 +464,57 @@
             return card;
         }
 
+        // 弹窗逻辑
         let currentModalCallback = null;
         function openModal(title, defaultValue, callback, isLinkMode = false) {
             const modal = document.getElementById('modal');
-            const modalTitle = document.getElementById('modalTitle');
-            const modalFields = document.getElementById('modalFields');
-            modalTitle.textContent = title;
-            modalFields.innerHTML = '';
+            modal.querySelector('#modalTitle').textContent = title;
+            const fields = modal.querySelector('#modalFields');
+            fields.innerHTML = '';
             if (isLinkMode) {
-                const urlLabel = document.createElement('label'); urlLabel.textContent = '网址：';
-                const urlInput = document.createElement('input'); urlInput.type = 'text'; urlInput.placeholder = 'https://...'; urlInput.value = defaultValue.url || '';
-                const nameLabel = document.createElement('label'); nameLabel.textContent = '名称（留空自动生成）：';
-                const nameInput = document.createElement('input'); nameInput.type = 'text'; nameInput.placeholder = '自动识别...'; nameInput.value = defaultValue.name || '';
-                modalFields.appendChild(urlLabel); modalFields.appendChild(urlInput); modalFields.appendChild(nameLabel); modalFields.appendChild(nameInput);
-                currentModalCallback = () => { const url = urlInput.value.trim(); if (!url) return false; callback(nameInput.value.trim(), url); return true; };
+                fields.innerHTML = `
+                    <label>网址：</label><input type="text" placeholder="https://..." value="${defaultValue.url || ''}" id="urlInput">
+                    <label>名称（留空自动生成）：</label><input type="text" placeholder="自动识别..." value="${defaultValue.name || ''}" id="nameInput">
+                `;
+                currentModalCallback = () => {
+                    const url = document.getElementById('urlInput').value.trim();
+                    if (!url) return false;
+                    callback(document.getElementById('nameInput').value.trim(), url);
+                    return true;
+                };
             } else {
-                const input = document.createElement('input'); input.type = 'text'; input.value = defaultValue; input.placeholder = '请输入名称';
-                modalFields.appendChild(input);
-                currentModalCallback = () => { const val = input.value.trim(); if (!val) return false; callback(val); return true; };
+                fields.innerHTML = `<input type="text" value="${defaultValue}" placeholder="请输入名称" id="nameInput">`;
+                currentModalCallback = () => {
+                    const val = document.getElementById('nameInput').value.trim();
+                    if (!val) return false;
+                    callback(val);
+                    return true;
+                };
             }
             modal.style.display = 'flex';
-            const confirmBtn = document.getElementById('modalConfirm');
-            const cancelBtn = document.getElementById('modalCancel');
-            const closeModal = () => { modal.style.display = 'none'; confirmBtn.removeEventListener('click', confirmHandler); cancelBtn.removeEventListener('click', cancelHandler); };
-            const confirmHandler = () => { if (currentModalCallback && currentModalCallback()) closeModal(); };
-            const cancelHandler = closeModal;
-            confirmBtn.addEventListener('click', confirmHandler);
-            cancelBtn.addEventListener('click', cancelHandler);
-            modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+            const closeModal = () => { modal.style.display = 'none'; };
+            modal.querySelector('#modalConfirm').onclick = () => { if (currentModalCallback && currentModalCallback()) closeModal(); };
+            modal.querySelector('#modalCancel').onclick = closeModal;
+            modal.onclick = (e) => { if (e.target === modal) closeModal(); };
         }
         function openLinkModal(link, callback, isNew = false) {
             const defaultValue = link ? { name: link.name, url: link.url } : { name: '', url: '' };
             openModal(isNew ? '添加链接' : '编辑链接', defaultValue, callback, true);
         }
 
+        // 编辑模式、主题
         function toggleEditMode() { editMode = !editMode; document.body.classList.toggle('edit-mode', editMode); document.getElementById('editModeBtn').classList.toggle('active', editMode); render(); }
         function toggleTheme() { isDark = !isDark; if (isDark) document.body.classList.add('dark'); else document.body.classList.remove('dark'); localStorage.setItem('startpage_theme', isDark ? 'dark' : 'light'); }
 
+        // 搜索（支持直接打开网址）
         function performSearch() {
             const query = document.getElementById('searchInput').value.trim();
             if (!query) return;
+            // 如果是域名或包含点且无空格，直接打开
+            if (/^[\w.-]+\.[a-zA-Z]{2,}(\/|$)?$/.test(query) && !query.includes(' ')) {
+                window.open('https://' + query, '_blank');
+                return;
+            }
             const engine = document.getElementById('searchEngine').value;
             let url;
             if (engine === 'baidu') url = `https://www.baidu.com/s?wd=${encodeURIComponent(query)}`;
@@ -499,6 +523,41 @@
             window.open(url, '_blank');
         }
 
+        // 导入导出
+        function exportConfig() {
+            const blob = new Blob([JSON.stringify(appData, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `startpage_backup_${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+        }
+        function importConfig(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.tabs && Array.isArray(data.tabs)) {
+                        appData = data;
+                        saveData();
+                        render();
+                        alert('配置导入成功！');
+                    } else {
+                        alert('无效的配置文件');
+                    }
+                } catch (ex) { alert('解析失败'); }
+            };
+            reader.readAsText(file);
+        }
+
+        // 快捷键 Ctrl+K
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'k') {
+                e.preventDefault();
+                document.getElementById('searchInput').focus();
+            }
+        });
+
+        // 初始化
         function init() {
             loadData();
             const savedTheme = localStorage.getItem('startpage_theme');
@@ -506,6 +565,11 @@
             render();
             document.getElementById('editModeBtn').addEventListener('click', toggleEditMode);
             document.getElementById('themeToggleBtn').addEventListener('click', toggleTheme);
+            document.getElementById('exportBtn').addEventListener('click', exportConfig);
+            document.getElementById('importBtn').addEventListener('click', () => document.getElementById('importFileInput').click());
+            document.getElementById('importFileInput').addEventListener('change', (e) => {
+                if (e.target.files[0]) importConfig(e.target.files[0]);
+            });
             document.getElementById('searchBtn').addEventListener('click', performSearch);
             document.getElementById('searchInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') performSearch(); });
         }

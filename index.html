@@ -20,32 +20,13 @@
         .search-input { flex: 1; padding: 12px; border: none; outline: none; font-size: 14px; }
         .search-btn { padding: 12px 20px; border: none; background: transparent; cursor: pointer; color: #666; }
 
-        /* 工具栏 */
-        .toolbar {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            display: flex;
-            gap: 10px;
-            z-index: 100;
-            flex-wrap: wrap;
-        }
-        .tool-btn {
-            background: #fff;
-            border: 1px solid #ddd;
-            border-radius: 20px;
-            padding: 6px 14px;
-            font-size: 13px;
-            cursor: pointer;
-            color: #555;
-            transition: all 0.2s;
-        }
+        .toolbar { position: fixed; top: 20px; right: 20px; display: flex; gap: 10px; z-index: 100; flex-wrap: wrap; }
+        .tool-btn { background: #fff; border: 1px solid #ddd; border-radius: 20px; padding: 6px 14px; font-size: 13px; cursor: pointer; color: #555; transition: all 0.2s; }
         .tool-btn:hover { background: #e8e8e8; }
         .tool-btn.active { background: #333; color: #fff; border-color: #333; }
         body.dark .tool-btn { background: #2a2a2a; border-color: #444; color: #ccc; }
         body.dark .tool-btn.active { background: #e0e0e0; color: #1a1a1a; }
 
-        /* 标签栏 */
         .tab-bar { display: flex; justify-content: center; gap: 40px; padding: 20px 0; background: #fff; border-bottom: 1px solid #e0e0e0; }
         .tab-item { padding: 10px 20px; cursor: pointer; font-size: 16px; color: #666; position: relative; transition: color 0.3s; }
         .tab-item:hover { color: #333; }
@@ -57,14 +38,8 @@
         .small-btn:hover { background: #e8e8e8; color: #333; }
         body.dark .small-btn:hover { background: #3a3a3a; color: #fff; }
 
-        /* 分类网格 */
         .categories-grid { max-width: 1400px; margin: 30px auto 0; padding: 0 20px 40px; display: flex; flex-direction: column; gap: 28px; }
-        .category-block {
-            display: flex;
-            align-items: flex-start;
-            gap: 24px;
-            transition: all 0.2s ease; /* 拖拽动画 */
-        }
+        .category-block { display: flex; align-items: flex-start; gap: 24px; }
         .drag-handle { cursor: grab; color: #aaa; font-size: 20px; margin-right: 8px; display: none; align-items: center; line-height: 1; }
         body.edit-mode .drag-handle { display: inline-flex; }
         .category-name { width: 110px; flex-shrink: 0; font-size: 16px; font-weight: 500; color: #555; padding-top: 3px; display: flex; align-items: center; gap: 8px; }
@@ -76,25 +51,10 @@
         body.dark .category-edit-btns button:hover { background: #3a3a3a; color: #fff; }
 
         .links-row { flex: 1; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; min-height: 32px; }
-
-        .link-card {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 14px;
-            background: #fff;
-            border-radius: 8px;
-            transition: all 0.2s ease;
-            cursor: pointer;
-            text-decoration: none;
-            color: #333;
-            white-space: nowrap;
-            user-select: none;
-        }
+        .link-card { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; background: #fff; border-radius: 8px; transition: all 0.2s ease; cursor: pointer; text-decoration: none; color: #333; white-space: nowrap; user-select: none; }
         .link-card:hover { background: #e8e8e8; transform: translateY(-1px); box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
         body.dark .link-card { background: #2a2a2a; color: #e0e0e0; }
         body.dark .link-card:hover { background: #3a3a3a; }
-
         .sortable-ghost { opacity: 0.4; background: #e8e8e8; outline: 2px dashed #4a90d9; }
         body.dark .sortable-ghost { background: #333; }
         .category-ghost { opacity: 0.4; outline: 2px dashed #888; outline-offset: 4px; border-radius: 8px; }
@@ -134,7 +94,6 @@
         .modal-buttons .confirm { background: #333; color: #fff; }
         .modal-buttons .cancel { background: #e0e0e0; }
 
-        /* 导出导入隐藏文件输入 */
         #importFileInput { display: none; }
     </style>
 </head>
@@ -176,7 +135,7 @@
     <script>
         function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
 
-        // ===== 根据域名智能生成名称 =====
+        // 智能名称生成
         function fetchTitleFromUrl(url) {
             try {
                 const host = new URL(url).hostname.replace(/^www\./i, '').replace(/\.(com|net|org|cn|io|ai|app|dev)$/i, '');
@@ -193,7 +152,7 @@
             } catch (e) { return "未命名"; }
         }
 
-        // ===== 多重图标源 =====
+        // 图标创建
         function createIconElement(link) {
             const iconSpan = document.createElement('span');
             iconSpan.className = 'link-icon';
@@ -211,7 +170,6 @@
                     `https://icons.duckduckgo.com/ip3/${domain}.ico`,
                     `https://www.google.com/s2/favicons?domain=${domain}&sz=32`
                 ];
-
                 function tryNext() {
                     if (tryCount >= sources.length) {
                         img.remove();
@@ -226,7 +184,6 @@
                     img.src = sources[tryCount];
                     tryCount++;
                 }
-
                 img.onload = () => {};
                 img.onerror = tryNext;
                 tryNext();
@@ -242,7 +199,7 @@
             return iconSpan;
         }
 
-        // ===== 默认数据 =====
+        // 默认数据
         const defaultData = {
             tabs: [
                 { id: uid(), name: '日常', categories: [
@@ -291,7 +248,7 @@
         }
         function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); }
 
-        // 同步 DOM 到数据
+        // 从 DOM 同步数据（仅在拖拽结束时调用）
         function syncDataFromDOM() {
             const activeTab = appData.tabs.find(t => t.id === appData.activeTabId);
             if (!activeTab) return;
@@ -345,6 +302,13 @@
         function renderAllCategories() {
             const activeTab = appData.tabs.find(t => t.id === appData.activeTabId);
             const container = document.getElementById('categoriesGrid');
+            
+            // *** 关键修复：销毁旧的 Sortable 实例，防止冲突 ***
+            if (window.sortableInstances) {
+                window.sortableInstances.forEach(s => s.destroy());
+            }
+            window.sortableInstances = [];
+
             container.innerHTML = '';
             if (!activeTab) return;
             if (activeTab.categories.length === 0) {
@@ -393,11 +357,10 @@
                     addLinkBtn.addEventListener('click', () => {
                         openLinkModal(null, (newName, newUrl) => {
                             if (!newUrl) return;
-                            // 自动补全 https://
                             if (!/^https?:\/\//i.test(newUrl)) newUrl = 'https://' + newUrl;
                             let title = newName?.trim() || fetchTitleFromUrl(newUrl);
                             cat.links.push({ id: uid(), name: title, url: newUrl });
-                            render();
+                            render(); // 添加链接后重新渲染
                             saveData();
                         }, true);
                     });
@@ -407,13 +370,14 @@
                 container.appendChild(block);
             });
 
+            // 编辑模式下的额外按钮和 Sortable 绑定
             if (editMode) {
                 const addCatBtn = document.createElement('button'); addCatBtn.textContent = '+ 添加分类'; addCatBtn.className = 'add-category-btn';
                 addCatBtn.addEventListener('click', () => { openModal('新建分类', '', (newName) => { if (newName && newName.trim()) { activeTab.categories.push({ id: uid(), name: newName.trim(), links: [] }); render(); saveData(); } }); });
                 container.appendChild(addCatBtn);
 
-                // Sortable 实例
-                new Sortable(container, {
+                // 绑定分类拖拽
+                const categorySortable = new Sortable(container, {
                     animation: 150,
                     handle: '.drag-handle',
                     ghostClass: 'category-ghost',
@@ -421,9 +385,11 @@
                     filter: '.add-category-btn',
                     onEnd: () => { syncDataFromDOM(); }
                 });
+                window.sortableInstances.push(categorySortable);
 
+                // 绑定每个分类内的链接拖拽（支持跨分类）
                 document.querySelectorAll('.links-row').forEach(row => {
-                    new Sortable(row, {
+                    const linkSortable = new Sortable(row, {
                         group: 'shared-links',
                         animation: 150,
                         ghostClass: 'sortable-ghost',
@@ -431,6 +397,7 @@
                         filter: '.add-link-btn',
                         onEnd: () => { syncDataFromDOM(); }
                     });
+                    window.sortableInstances.push(linkSortable);
                 });
             }
         }
@@ -439,8 +406,7 @@
             const card = document.createElement('div');
             card.className = 'link-card';
             card.dataset.linkId = link.id;
-            // 编辑模式才可拖拽
-            card.draggable = editMode;
+            card.draggable = editMode; // 仅编辑模式可拖拽
 
             card.appendChild(createIconElement(link));
             const nameSpan = document.createElement('span');
@@ -510,7 +476,6 @@
         function performSearch() {
             const query = document.getElementById('searchInput').value.trim();
             if (!query) return;
-            // 如果是域名或包含点且无空格，直接打开
             if (/^[\w.-]+\.[a-zA-Z]{2,}(\/|$)?$/.test(query) && !query.includes(' ')) {
                 window.open('https://' + query, '_blank');
                 return;
@@ -541,9 +506,7 @@
                         saveData();
                         render();
                         alert('配置导入成功！');
-                    } else {
-                        alert('无效的配置文件');
-                    }
+                    } else alert('无效的配置文件');
                 } catch (ex) { alert('解析失败'); }
             };
             reader.readAsText(file);

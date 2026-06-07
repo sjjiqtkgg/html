@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>起始页 · 灰调极简（可编辑）</title>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -37,7 +38,6 @@
 
         .categories-grid { max-width: 1400px; margin: 30px auto 0; padding: 0 20px 40px; display: flex; flex-direction: column; gap: 28px; }
         .category-block { display: flex; align-items: flex-start; gap: 24px; transition: opacity 0.2s; }
-        .category-block.drag-over { background: rgba(0,0,0,0.03); border-radius: 8px; }
         .drag-handle { cursor: grab; color: #aaa; font-size: 20px; margin-right: 8px; display: none; align-items: center; line-height: 1; }
         body.edit-mode .drag-handle { display: inline-flex; }
         .category-name { width: 110px; flex-shrink: 0; font-size: 16px; font-weight: 500; color: #555; padding-top: 3px; display: flex; align-items: center; gap: 8px; }
@@ -49,13 +49,13 @@
         body.dark .category-edit-btns button:hover { background: #3a3a3a; color: #fff; }
 
         .links-row { flex: 1; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; min-height: 32px; }
-        .link-card { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; background: #fff; border-radius: 8px; transition: all 0.2s; cursor: pointer; text-decoration: none; color: #333; white-space: nowrap; user-select: none; }
+        .link-card { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; background: #fff; border-radius: 8px; transition: all 0.2s ease; cursor: pointer; text-decoration: none; color: #333; white-space: nowrap; user-select: none; }
         .link-card:hover { background: #e8e8e8; transform: translateY(-1px); box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
         body.dark .link-card { background: #2a2a2a; color: #e0e0e0; }
         body.dark .link-card:hover { background: #3a3a3a; }
-        .link-card.dragging { opacity: 0.4; }
-        .link-card.drag-over { outline: 2px dashed #4a90d9; }
-        .category-ghost { opacity: 0.4; outline: 2px dashed #888; }
+        .sortable-ghost { opacity: 0.4; background: #e8e8e8; outline: 2px dashed #4a90d9; }
+        body.dark .sortable-ghost { background: #333; }
+        .category-ghost { opacity: 0.4; outline: 2px dashed #888; outline-offset: 4px; border-radius: 8px; }
 
         .link-icon { width: 22px; height: 22px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; overflow: hidden; }
         .link-icon img { width: 100%; height: 100%; object-fit: contain; display: block; }
@@ -132,7 +132,6 @@
     <script>
         function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
 
-        // 智能名称生成
         function fetchTitleFromUrl(url) {
             try {
                 const host = new URL(url).hostname.replace(/^www\./i, '').replace(/\.(com|net|org|cn|io|ai|app|dev)$/i, '');
@@ -149,7 +148,6 @@
             } catch (e) { return "未命名"; }
         }
 
-        // 图标创建
         function createIconElement(link) {
             const iconSpan = document.createElement('span');
             iconSpan.className = 'link-icon';
@@ -196,7 +194,6 @@
             return iconSpan;
         }
 
-        // 默认数据（简化，您可以自行扩充）
         const defaultData = {
             tabs: [
                 { id: uid(), name: '日常', categories: [
@@ -216,11 +213,7 @@
         let appData = JSON.parse(JSON.stringify(defaultData));
         let editMode = false;
         let isDark = false;
-        const STORAGE_KEY = 'startpage_native_drag_v1';
-
-        // 拖拽状态
-        let draggedLink = null;       // { linkId, fromCatId }
-        let draggedCategoryId = null;
+        const STORAGE_KEY = 'startpage_fixed_v2';
 
         function loadData() {
             const saved = localStorage.getItem(STORAGE_KEY);
@@ -233,29 +226,36 @@
         }
         function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); }
 
-        // 从DOM同步数据到appData（拖拽后用）
-        function syncFromDOM() {
+        // ✅ 修复后的同步函数
+        function syncDataFromDOM() {
             const activeTab = appData.tabs.find(t => t.id === appData.activeTabId);
             if (!activeTab) return;
+
+            // 构建全局 linkMap：ID → 链接对象
+            const linkMap = new Map();
+            activeTab.categories.forEach(cat => {
+                cat.links.forEach(link => linkMap.set(link.id, link));
+            });
+
+            // 遍历 DOM，重新构建每个分类的 links
             const newCategories = [];
             document.querySelectorAll('.category-block').forEach(block => {
                 const catId = block.dataset.catId;
-                let cat = activeTab.categories.find(c => c.id === catId);
-                if (!cat) return;
+                const origCat = activeTab.categories.find(c => c.id === catId);
+                if (!origCat) return;
+
                 const newLinks = [];
                 block.querySelectorAll('.link-card').forEach(card => {
                     const linkId = card.dataset.linkId;
-                    // 在当前activeTab的所有分类中查找该链接
-                    let found = null;
-                    for (let c of activeTab.categories) {
-                        found = c.links.find(l => l.id === linkId);
-                        if (found) break;
+                    if (linkMap.has(linkId)) {
+                        newLinks.push(linkMap.get(linkId));
                     }
-                    if (found) newLinks.push(found);
                 });
-                cat.links = newLinks;
-                newCategories.push(cat);
+
+                newCategories.push({ ...origCat, links: newLinks });
             });
+
+            // 统一替换，不会出现“先删后找”的问题
             activeTab.categories = newCategories;
             saveData();
         }
@@ -292,6 +292,13 @@
         function renderAllCategories() {
             const activeTab = appData.tabs.find(t => t.id === appData.activeTabId);
             const container = document.getElementById('categoriesGrid');
+            
+            // 销毁旧实例
+            if (window.sortableInstances) {
+                window.sortableInstances.forEach(s => s.destroy());
+            }
+            window.sortableInstances = [];
+
             container.innerHTML = '';
             if (!activeTab) return;
             if (activeTab.categories.length === 0) {
@@ -304,32 +311,10 @@
                 return;
             }
 
-            // 设置容器拖拽事件（用于分类排序）
-            if (editMode) {
-                container.addEventListener('dragover', handleCategoryDragOver);
-                container.addEventListener('drop', handleCategoryDrop);
-            } else {
-                container.removeEventListener('dragover', handleCategoryDragOver);
-                container.removeEventListener('drop', handleCategoryDrop);
-            }
-
             activeTab.categories.forEach(cat => {
                 const block = document.createElement('div');
                 block.className = 'category-block';
                 block.dataset.catId = cat.id;
-                block.draggable = editMode; // 分类可拖拽
-
-                // 拖拽事件
-                block.addEventListener('dragstart', e => {
-                    if (!editMode) return;
-                    draggedCategoryId = cat.id;
-                    e.dataTransfer.effectAllowed = 'move';
-                    block.classList.add('dragging');
-                });
-                block.addEventListener('dragend', () => {
-                    draggedCategoryId = null;
-                    document.querySelectorAll('.category-block').forEach(b => b.classList.remove('dragging','drag-over'));
-                });
 
                 const nameDiv = document.createElement('div');
                 nameDiv.className = 'category-name';
@@ -340,6 +325,7 @@
                 const nameSpan = document.createElement('span');
                 nameSpan.textContent = cat.name;
                 nameDiv.appendChild(nameSpan);
+
                 if (editMode) {
                     const btnGroup = document.createElement('div');
                     btnGroup.className = 'category-edit-btns';
@@ -353,39 +339,7 @@
                 const linksRow = document.createElement('div');
                 linksRow.className = 'links-row';
                 linksRow.dataset.catId = cat.id;
-
-                // 链接拖拽事件（在 linksRow 上处理 drop）
-                linksRow.addEventListener('dragover', e => {
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = 'move';
-                });
-                linksRow.addEventListener('drop', e => {
-                    e.preventDefault();
-                    const linkId = e.dataTransfer.getData('text/plain');
-                    const fromCatId = e.dataTransfer.getData('fromCatId');
-                    if (!linkId || !fromCatId) return;
-                    const targetCatId = cat.id;
-                    // 移除原分类中的链接
-                    const fromCat = activeTab.categories.find(c => c.id === fromCatId);
-                    if (!fromCat) return;
-                    const linkIndex = fromCat.links.findIndex(l => l.id === linkId);
-                    if (linkIndex === -1) return;
-                    const [movedLink] = fromCat.links.splice(linkIndex, 1);
-                    // 添加到目标分类
-                    const targetCat = activeTab.categories.find(c => c.id === targetCatId);
-                    if (targetCat) {
-                        targetCat.links.push(movedLink);
-                    } else {
-                        // 放回原分类
-                        fromCat.links.splice(linkIndex, 0, movedLink);
-                    }
-                    render();
-                    saveData();
-                });
-
-                cat.links.forEach(link => {
-                    linksRow.appendChild(createLinkCard(cat, link));
-                });
+                cat.links.forEach(link => linksRow.appendChild(createLinkCard(cat, link)));
 
                 if (editMode) {
                     const addBtn = document.createElement('button'); addBtn.textContent='+ 添加链接'; addBtn.className='add-link-btn';
@@ -394,11 +348,11 @@
                         if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
                         const title = name?.trim() || fetchTitleFromUrl(url);
                         cat.links.push({ id: uid(), name: title, url: url });
-                        render();
-                        saveData();
+                        render(); saveData();
                     }, true);
                     linksRow.appendChild(addBtn);
                 }
+
                 block.appendChild(linksRow);
                 container.appendChild(block);
             });
@@ -407,6 +361,29 @@
                 const addCat = document.createElement('button'); addCat.textContent='+ 添加分类'; addCat.className='add-category-btn';
                 addCat.onclick = () => openModal('新建分类', '', v => { if(v) { activeTab.categories.push({id:uid(), name:v, links:[]}); render(); saveData(); } });
                 container.appendChild(addCat);
+
+                // Sortable 实例
+                const catSort = new Sortable(container, {
+                    animation: 150,
+                    handle: '.drag-handle',
+                    ghostClass: 'category-ghost',
+                    draggable: '.category-block',
+                    filter: '.add-category-btn',
+                    onEnd: () => { syncDataFromDOM(); }
+                });
+                window.sortableInstances.push(catSort);
+
+                document.querySelectorAll('.links-row').forEach(row => {
+                    const linkSort = new Sortable(row, {
+                        group: 'shared-links',
+                        animation: 150,
+                        ghostClass: 'sortable-ghost',
+                        draggable: '.link-card',
+                        filter: '.add-link-btn',
+                        onEnd: () => { syncDataFromDOM(); }
+                    });
+                    window.sortableInstances.push(linkSort);
+                });
             }
         }
 
@@ -415,50 +392,14 @@
             card.className = 'link-card';
             card.dataset.linkId = link.id;
             card.draggable = editMode;
+
             card.appendChild(createIconElement(link));
             const nameSpan = document.createElement('span');
             nameSpan.className = 'link-name';
             nameSpan.textContent = link.name;
             card.appendChild(nameSpan);
 
-            card.addEventListener('dragstart', e => {
-                if (!editMode) return;
-                e.dataTransfer.setData('text/plain', link.id);
-                e.dataTransfer.setData('fromCatId', cat.id);
-                e.dataTransfer.effectAllowed = 'move';
-                card.classList.add('dragging');
-            });
-            card.addEventListener('dragend', () => {
-                document.querySelectorAll('.link-card').forEach(c => c.classList.remove('dragging','drag-over'));
-            });
-
-            // 同一分类内排序的 dragover/drop 在 card 上处理
-            card.addEventListener('dragover', e => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-                card.classList.add('drag-over');
-            });
-            card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
-            card.addEventListener('drop', e => {
-                e.stopPropagation(); // 避免冒泡到 linksRow
-                card.classList.remove('drag-over');
-                const linkId = e.dataTransfer.getData('text/plain');
-                const fromCatId = e.dataTransfer.getData('fromCatId');
-                if (!linkId || !fromCatId || linkId === link.id) return;
-                const fromCat = appData.tabs.find(t=>t.id===appData.activeTabId)?.categories.find(c=>c.id===fromCatId);
-                if (!fromCat) return;
-                const targetCat = cat; // 同一个分类
-                const fromIndex = fromCat.links.findIndex(l => l.id === linkId);
-                const toIndex = targetCat.links.findIndex(l => l.id === link.id);
-                if (fromIndex !== -1 && toIndex !== -1) {
-                    const [moved] = fromCat.links.splice(fromIndex, 1);
-                    targetCat.links.splice(toIndex, 0, moved);
-                    render();
-                    saveData();
-                }
-            });
-
-            card.addEventListener('click', e => {
+            card.addEventListener('click', (e) => {
                 if (editMode) return;
                 if (link.url && link.url !== '#') window.open(link.url, '_blank');
                 else alert('该链接未设置有效网址');
@@ -477,36 +418,6 @@
             return card;
         }
 
-        // 分类拖拽全局处理
-        function handleCategoryDragOver(e) {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-            const target = e.target.closest('.category-block');
-            if (target && target.dataset.catId !== draggedCategoryId) {
-                target.classList.add('drag-over');
-            }
-        }
-        function handleCategoryDrop(e) {
-            e.preventDefault();
-            const target = e.target.closest('.category-block');
-            if (!target || !draggedCategoryId) return;
-            const targetCatId = target.dataset.catId;
-            if (targetCatId === draggedCategoryId) return;
-            const activeTab = appData.tabs.find(t => t.id === appData.activeTabId);
-            if (!activeTab) return;
-            const fromIdx = activeTab.categories.findIndex(c => c.id === draggedCategoryId);
-            const toIdx = activeTab.categories.findIndex(c => c.id === targetCatId);
-            if (fromIdx !== -1 && toIdx !== -1) {
-                const [moved] = activeTab.categories.splice(fromIdx, 1);
-                activeTab.categories.splice(toIdx, 0, moved);
-                render();
-                saveData();
-            }
-            document.querySelectorAll('.category-block').forEach(b => b.classList.remove('drag-over'));
-            draggedCategoryId = null;
-        }
-
-        // 弹窗
         let currentModalCallback = null;
         function openModal(title, defaultValue, callback, isLinkMode = false) {
             const modal = document.getElementById('modal');

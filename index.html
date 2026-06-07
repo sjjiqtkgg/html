@@ -419,7 +419,7 @@
                     ghostClass: 'category-ghost',
                     draggable: '.category-block',
                     filter: '.add-category-btn',
-                    onEnd: () => { syncDataFromDOM(); render(); }
+                    onEnd: () => { syncDataFromDOM(); }
                 });
 
                 document.querySelectorAll('.links-row').forEach(row => {
@@ -429,7 +429,7 @@
                         ghostClass: 'sortable-ghost',
                         draggable: '.link-card',
                         filter: '.add-link-btn',
-                        onEnd: () => { syncDataFromDOM(); render(); }
+                        onEnd: () => { syncDataFromDOM(); }
                     });
                 });
             }

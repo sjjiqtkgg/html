@@ -240,7 +240,28 @@
             }
             return null;
         }
-        // ── ④ Favicon（sessionStorage缓存 + 正确检测占位符） ──────
+        // ── ④ Favicon持久缓存（localStorage + 30天过期） ──────────
+        const FAV_TTL = 30 * 24 * 60 * 60 * 1000; // 30天
+
+        function getFavCache(domain) {
+            try {
+                const raw = localStorage.getItem('fav2_' + domain);
+                if (!raw) return null;
+                const { url, ts } = JSON.parse(raw);
+                if (Date.now() - ts > FAV_TTL) {
+                    localStorage.removeItem('fav2_' + domain); // 过期清除
+                    return null;
+                }
+                return url; // 'letter' 或 图标URL
+            } catch { return null; }
+        }
+
+        function setFavCache(domain, url) {
+            try {
+                localStorage.setItem('fav2_' + domain, JSON.stringify({ url, ts: Date.now() }));
+            } catch(e) { /* localStorage已满时静默忽略 */ }
+        }
+
         function createIconElement(link) {
             const iconSpan = document.createElement('span');
             iconSpan.className = 'link-icon';
@@ -257,19 +278,12 @@
 
             if (!validUrl || !domain || link.url === '#') { showLetter(); return iconSpan; }
 
-            // ✅ 换用 fav2_ 前缀，避免使用旧缓存（旧缓存可能存了灰色占位图URL）
-            const cacheKey = `fav2_${domain}`;
-            const cached = sessionStorage.getItem(cacheKey);
+            const cached = getFavCache(domain);
             if (cached === 'letter') { showLetter(); return iconSpan; }
 
             const img = document.createElement('img');
-
-            // 加载策略：
-            // 1. Google sz=64：minW=17，加载后 naturalWidth≤16 说明是占位符，跳过
-            // 2. 直接从站点根路径取 /favicon.ico：最真实来源，404时触发onerror
-            // （不再使用DDG，因为它对未知站点返回灰色占位图而非404）
             const sources = cached
-                ? [{ url: cached, minW: 0 }]
+                ? [{ url: cached, minW: 0 }]       // 直接用缓存URL
                 : [
                     { url: `https://www.google.com/s2/favicons?domain=${domain}&sz=64`, minW: 17 },
                     { url: `${origin}/favicon.ico`, minW: 0 },
@@ -279,7 +293,7 @@
             function tryNext() {
                 if (idx >= sources.length) {
                     img.remove();
-                    sessionStorage.setItem(cacheKey, 'letter');
+                    setFavCache(domain, 'letter'); // 缓存"无图标"结果，避免反复请求
                     showLetter();
                     return;
                 }
@@ -288,12 +302,10 @@
                 img.src = url;
             }
             img.onload = function () {
-                // 检测 Google 占位符（请求64px但返回≤16px = 未找到真实图标）
                 if (parseInt(this.dataset.minW) > 0 && this.naturalWidth < parseInt(this.dataset.minW)) {
-                    tryNext();
-                    return;
+                    tryNext(); return; // Google占位符，尺寸太小，跳过
                 }
-                if (!cached) sessionStorage.setItem(cacheKey, this.src); // 缓存成功URL
+                if (!cached) setFavCache(domain, this.src); // 首次成功，写入缓存
             };
             img.onerror = tryNext;
             tryNext();

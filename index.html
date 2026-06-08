@@ -107,6 +107,43 @@
         body.dark .sugg-name { color: #e0e0e0; }
         .sugg-url  { font-size: 11px; color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
         .sugg-cat  { font-size: 11px; color: #bbb; flex-shrink: 0; padding-left: 6px; }
+        /* ══ 微调合集 ══════════════════════════════════════════════ */
+
+        /* 1. 链接卡片点击微弹 */
+        .link-card:active { transform: scale(0.96); transition: transform .1s ease; }
+
+        /* 2. 标签切换内容淡入 */
+        @keyframes tabFadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to   { opacity: 1; transform: translateY(0);   }
+        }
+        .cats-view.tab-enter { animation: tabFadeIn .18s ease forwards; }
+
+        /* 3. 编辑模式顶部橙色指示条 */
+        body.edit-mode::before {
+            content: '';
+            position: fixed; top: 0; left: 0; right: 0;
+            height: 3px; background: #f97316; z-index: 9999;
+        }
+
+        /* 4. 搜索框聚焦光晕 */
+        .search-box:focus-within {
+            box-shadow: 0 0 0 3px rgba(99,102,241,.15), 0 2px 10px rgba(0,0,0,.05);
+        }
+        body.dark .search-box:focus-within {
+            box-shadow: 0 0 0 3px rgba(99,102,241,.25), 0 2px 10px rgba(0,0,0,.3);
+        }
+
+        /* 5. 分类行 hover 左侧色条 */
+        .cat-row { border-left: 2px solid transparent; padding-left: 10px; transition: border-color .15s; }
+        .cat-row:hover { border-left-color: #e5e7eb; }
+        body.dark .cat-row:hover { border-left-color: #333; }
+
+        /* 6. 文字选中颜色配主题 */
+        ::selection { background: #333; color: #fff; }
+        body.dark ::selection { background: #6366f1; color: #fff; }
+
+        /* ══════════════════════════════════════════════════════════ */
         #importFileInput { display: none; }
         /* ── ① 识别中状态（favicon异步抓取期间） ── */
         @keyframes sp-blink { 0%,100%{opacity:.45} 50%{opacity:1} }
@@ -350,7 +387,16 @@
             activeTab.categories = newCategories;
             saveData();
         }
-        function render() { renderTabs(); renderAllCategories(); }
+        function render() {
+            renderTabs();
+            const view = document.getElementById('catsView');
+            if (view) {
+                view.classList.remove('tab-enter');
+                void view.offsetWidth;
+                view.classList.add('tab-enter');
+            }
+            renderAllCategories();
+        }
         function renderTabs() {
             const tabBar = document.getElementById('tabBar'); tabBar.innerHTML = '';
             appData.tabs.forEach(tab => {

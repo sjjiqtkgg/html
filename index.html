@@ -79,7 +79,37 @@
         .modal-buttons button { padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; }
         .modal-buttons .confirm { background: #333; color: #fff; }
         .modal-buttons .cancel { background: #e0e0e0; }
-        /* ── 搜索建议下拉框 ── */
+        /* ── WebDAV 同步 ── */
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .tool-btn[data-sync=syncing] .sync-ico { display:inline-block; animation:spin 1s linear infinite; }
+        .tool-btn[data-sync=ok]      .sync-ico { color: #22c55e; }
+        .tool-btn[data-sync=err]     .sync-ico { color: #ef4444; }
+
+        #syncOverlay { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:1000; backdrop-filter:blur(2px); opacity:0; pointer-events:none; transition:opacity .2s; }
+        #syncOverlay.open { opacity:1; pointer-events:auto; }
+        #syncOverlay .sync-box { background:#fff; border-radius:10px; box-shadow:0 6px 28px rgba(0,0,0,.15); padding:24px 28px; width:100%; max-width:430px; }
+        body.dark #syncOverlay .sync-box { background:#1e1e1e; }
+        .sync-box h3 { font-size:15px; font-weight:600; margin-bottom:18px; }
+        .sync-row { margin-bottom:12px; }
+        .sync-row label { display:block; font-size:12px; color:#888; margin-bottom:4px; }
+        .sync-row input[type=text],
+        .sync-row input[type=password] { width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:14px; background:#fafafa; color:#333; outline:none; transition:border .15s; }
+        .sync-row input:focus { border-color:#6366f1; }
+        body.dark .sync-row input { background:#111; border-color:#444; color:#e0e0e0; }
+        .sync-toggle-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+        .sync-toggle-row label { font-size:14px; color:#333; }
+        body.dark .sync-toggle-row label { color:#e0e0e0; }
+        .sync-actions { display:flex; gap:8px; margin-top:18px; }
+        .sync-actions button { flex:1; padding:9px; border-radius:6px; font-size:13px; cursor:pointer; border:1px solid #ddd; background:#f5f5f5; transition:all .15s; }
+        .sync-actions button:hover { background:#e5e5e5; }
+        .sync-actions .btn-primary { background:#333; color:#fff; border-color:#333; }
+        .sync-actions .btn-primary:hover { background:#111; }
+        body.dark .sync-actions button { background:#2a2a2a; border-color:#444; color:#e0e0e0; }
+        body.dark .sync-actions .btn-primary { background:#6366f1; border-color:#6366f1; color:#fff; }
+        #syncMsg { font-size:12px; margin-top:10px; min-height:18px; padding:0 2px; }
+        #syncMsg.ok  { color:#22c55e; }
+        #syncMsg.err { color:#ef4444; }
+        .sync-hint { font-size:11px; color:#aaa; margin-top:4px; line-height:1.5; }
         .sugg-box {
             position: fixed;
             background: #fff;
@@ -159,6 +189,10 @@
         <button class="tool-btn" id="themeToggleBtn">🌓 深色</button>
         <button class="tool-btn" id="exportBtn" title="导出配置">⬇️ 导出</button>
         <button class="tool-btn" id="importBtn" title="导入配置">⬆️ 导入</button>
+        <button class="tool-btn" id="syncBtn" title="WebDAV 云同步">
+            <span class="sync-ico">☁</span>
+            <span id="syncLbl"> 同步</span>
+        </button>
         <input type="file" id="importFileInput" accept=".json">
     </div>
     <div class="search-container">
@@ -183,6 +217,47 @@
                 <button class="confirm" id="modalConfirm">确定</button>
             </div>
         </div>
+    </div>
+
+    <!-- ☁ WebDAV 同步设置面板 -->
+    <div id="syncOverlay">
+      <div class="sync-box">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+          <h3 style="margin:0;font-size:15px;font-weight:600">☁ WebDAV 同步（坚果云）</h3>
+          <button id="syncCloseBtn" style="background:none;border:none;font-size:20px;cursor:pointer;color:#aaa;line-height:1;padding:0 4px">×</button>
+        </div>
+        <div class="sync-row">
+          <label>服务器地址</label>
+          <input type="text" id="syncServer" placeholder="https://dav.jianguoyun.com/dav/">
+        </div>
+        <div class="sync-row">
+          <label>账号（坚果云邮箱）</label>
+          <input type="text" id="syncUser" placeholder="your@email.com" autocomplete="username">
+        </div>
+        <div class="sync-row">
+          <label>应用密码 <span style="font-weight:normal;color:#aaa">（坚果云→设置→安全→应用密码）</span></label>
+          <input type="password" id="syncPass" autocomplete="current-password">
+        </div>
+        <div class="sync-row">
+          <label>文件路径</label>
+          <input type="text" id="syncPath" placeholder="/startpage/nav.json">
+        </div>
+        <div class="sync-row">
+          <label>CF Worker 代理地址 <span style="font-weight:normal;color:#aaa">（解决坚果云跨域，必填）</span></label>
+          <input type="text" id="syncProxy" placeholder="https://your-worker.workers.dev/dav-proxy">
+        </div>
+        <details style="margin:6px 0 14px;font-size:12px;color:#888">
+          <summary style="cursor:pointer;user-select:none;outline:none">▸ 查看需要在 CF Worker 添加的代码（约10行）</summary>
+          <pre id="cfWorkerCode" style="background:#f4f4f4;border-radius:6px;padding:10px 12px;margin-top:8px;font-size:11px;overflow-x:auto;line-height:1.7;color:#333;white-space:pre"></pre>
+        </details>
+        <div id="syncMsg" style="font-size:12px;min-height:18px;margin-bottom:4px"></div>
+        <div class="sync-actions">
+          <button id="syncTestBtn">🔌 测试连接</button>
+          <button id="syncPushBtn">⬆ 推送到云端</button>
+          <button id="syncPullBtn">⬇ 从云端恢复</button>
+          <button class="btn-primary" id="syncSaveBtn">💾 保存</button>
+        </div>
+      </div>
     </div>
     <script>
         function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
@@ -681,7 +756,183 @@
         }
         function exportConfig() { const blob = new Blob([JSON.stringify(appData, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `startpage_backup_${new Date().toISOString().slice(0,10)}.json`; a.click(); }
         function importConfig(file) { const reader = new FileReader(); reader.onload = (e) => { try { const data = JSON.parse(e.target.result); if (data.tabs && Array.isArray(data.tabs)) { appData = data; saveData(); render(); alert('配置导入成功！'); } else alert('无效的配置文件'); } catch (ex) { alert('解析失败'); } }; reader.readAsText(file); }
-        // ── ② 全局键盘快捷键 ────────────────────────────────────────
+        // ══ WebDAV 同步 ══════════════════════════════════════════════
+        const SYNC_CONF_KEY = 'webdav_conf_v1';
+
+        // CF Worker 代理代码（展示给用户复制）
+        const CF_WORKER_CODE =
+`// 在你的 worker.js 里加这段路由（放在最顶部的 fetch handler 里）
+if (url.pathname === '/dav-proxy') {
+  const target = url.searchParams.get('url');
+  if (!target) return new Response('missing url', { status: 400 });
+  const resp = await fetch(target, {
+    method:  request.method,
+    headers: request.headers,
+    body:    ['GET','HEAD'].includes(request.method) ? null : request.body,
+  });
+  const headers = new Headers(resp.headers);
+  headers.set('Access-Control-Allow-Origin', '*');
+  headers.set('Access-Control-Allow-Methods', 'GET, PUT, OPTIONS');
+  headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+  if (request.method === 'OPTIONS')
+    return new Response(null, { status: 204, headers });
+  return new Response(resp.body, { status: resp.status, headers });
+}`;
+
+        function getSyncConf() {
+            try { return JSON.parse(localStorage.getItem(SYNC_CONF_KEY)) || {}; } catch { return {}; }
+        }
+        function saveSyncConf(c) { localStorage.setItem(SYNC_CONF_KEY, JSON.stringify(c)); }
+
+        // 构造请求 URL（走代理或直连）
+        function buildUrl(conf, filePath) {
+            const base  = (conf.server || 'https://dav.jianguoyun.com/dav/').replace(/\/$/, '');
+            const path  = (filePath || conf.path || '/startpage/nav.json').replace(/^\//, '');
+            const target = base + '/' + path;
+            if (conf.proxy) {
+                return conf.proxy.replace(/\/$/, '') + '?url=' + encodeURIComponent(target);
+            }
+            return target;
+        }
+
+        function authHeader(conf) {
+            return 'Basic ' + btoa(unescape(encodeURIComponent(conf.user + ':' + conf.pass)));
+        }
+
+        // 设置状态提示
+        function setSyncMsg(text, type) {  // type: '' | 'ok' | 'err'
+            const el = document.getElementById('syncMsg');
+            if (!el) return;
+            el.textContent = text;
+            el.className = type || '';
+        }
+        function setSyncBtnState(state) {  // 'idle' | 'syncing' | 'ok' | 'err'
+            const btn = document.getElementById('syncBtn');
+            const lbl = document.getElementById('syncLbl');
+            if (!btn || !lbl) return;
+            btn.dataset.sync = state;
+            lbl.textContent = { idle:'同步', syncing:'同步中…', ok:'已同步', err:'出错' }[state] || '同步';
+        }
+
+        // ── 推送：本地 → 坚果云 ─────────────────────────────────────
+        async function davPush() {
+            const conf = getSyncConf();
+            if (!conf.server || !conf.user || !conf.pass) {
+                setSyncMsg('⚠ 请先填写并保存同步设置', 'err'); return;
+            }
+            setSyncMsg('推送中…'); setSyncBtnState('syncing');
+            try {
+                const payload = JSON.stringify({ ...appData, _ts: Date.now() }, null, 2);
+                const res = await fetch(buildUrl(conf), {
+                    method:  'PUT',
+                    headers: { 'Authorization': authHeader(conf), 'Content-Type': 'application/json' },
+                    body:    payload,
+                });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                setSyncMsg('✓ 推送成功 ' + new Date().toLocaleTimeString(), 'ok');
+                setSyncBtnState('ok');
+            } catch(e) {
+                const msg = e.message.includes('Failed to fetch') ? '跨域被拦截，请检查 CF Worker 代理地址' : e.message;
+                setSyncMsg('✗ 推送失败：' + msg, 'err');
+                setSyncBtnState('err');
+            }
+        }
+
+        // ── 拉取：坚果云 → 本地 ─────────────────────────────────────
+        async function davPull() {
+            const conf = getSyncConf();
+            if (!conf.server || !conf.user || !conf.pass) {
+                setSyncMsg('⚠ 请先填写并保存同步设置', 'err'); return;
+            }
+            if (!confirm('从云端恢复会覆盖本地所有数据，确定吗？')) return;
+            setSyncMsg('拉取中…'); setSyncBtnState('syncing');
+            try {
+                const res = await fetch(buildUrl(conf), {
+                    method:  'GET',
+                    headers: { 'Authorization': authHeader(conf) },
+                });
+                if (res.status === 404) throw new Error('云端还没有文件，请先推送一次');
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const remote = await res.json();
+                delete remote._ts;
+                appData = remote;
+                fixIds();
+                saveData();
+                render();
+                setSyncMsg('✓ 恢复成功 ' + new Date().toLocaleTimeString(), 'ok');
+                setSyncBtnState('ok');
+            } catch(e) {
+                const msg = e.message.includes('Failed to fetch') ? '跨域被拦截，请检查 CF Worker 代理地址' : e.message;
+                setSyncMsg('✗ 拉取失败：' + msg, 'err');
+                setSyncBtnState('err');
+            }
+        }
+
+        // ── 测试连接 ─────────────────────────────────────────────────
+        async function davTest() {
+            const conf = getSyncConf();
+            if (!conf.server || !conf.user || !conf.pass) {
+                setSyncMsg('⚠ 请先填写账号信息', 'err'); return;
+            }
+            setSyncMsg('连接中…');
+            try {
+                const testUrl = buildUrl(conf, '/');
+                const res = await fetch(testUrl, {
+                    method:  'GET',
+                    headers: { 'Authorization': authHeader(conf) },
+                });
+                if (res.status === 401) throw new Error('账号或密码错误');
+                if (res.status === 404 || res.ok || res.status === 207) {
+                    setSyncMsg('✓ 连接成功', 'ok');
+                } else {
+                    throw new Error('HTTP ' + res.status);
+                }
+            } catch(e) {
+                const msg = e.message.includes('Failed to fetch') ? '跨域被拦截，请检查代理地址' : e.message;
+                setSyncMsg('✗ ' + msg, 'err');
+            }
+        }
+
+        // ── 打开/关闭设置面板 ────────────────────────────────────────
+        function openSyncPanel() {
+            const conf = getSyncConf();
+            document.getElementById('syncServer').value = conf.server || 'https://dav.jianguoyun.com/dav/';
+            document.getElementById('syncUser').value   = conf.user   || '';
+            document.getElementById('syncPass').value   = conf.pass   || '';
+            document.getElementById('syncPath').value   = conf.path   || '/startpage/nav.json';
+            document.getElementById('syncProxy').value  = conf.proxy  || '';
+            document.getElementById('cfWorkerCode').textContent = CF_WORKER_CODE;
+            setSyncMsg('');
+            document.getElementById('syncOverlay').classList.add('open');
+        }
+        function closeSyncPanel() {
+            document.getElementById('syncOverlay').classList.remove('open');
+        }
+
+        function bindSyncEvents() {
+            document.getElementById('syncBtn').addEventListener('click', openSyncPanel);
+            document.getElementById('syncCloseBtn').addEventListener('click', closeSyncPanel);
+            document.getElementById('syncOverlay').addEventListener('click', e => {
+                if (e.target === document.getElementById('syncOverlay')) closeSyncPanel();
+            });
+            document.getElementById('syncSaveBtn').addEventListener('click', () => {
+                const conf = {
+                    server: document.getElementById('syncServer').value.trim(),
+                    user:   document.getElementById('syncUser').value.trim(),
+                    pass:   document.getElementById('syncPass').value,
+                    path:   document.getElementById('syncPath').value.trim() || '/startpage/nav.json',
+                    proxy:  document.getElementById('syncProxy').value.trim(),
+                };
+                saveSyncConf(conf);
+                setSyncMsg('✓ 设置已保存', 'ok');
+            });
+            document.getElementById('syncTestBtn').addEventListener('click', davTest);
+            document.getElementById('syncPushBtn').addEventListener('click', davPush);
+            document.getElementById('syncPullBtn').addEventListener('click', davPull);
+        }
+        // ══════════════════════════════════════════════════════════════
+
+
         document.addEventListener('keydown', (e) => {
             const tag = document.activeElement?.tagName?.toLowerCase();
             const inInput = ['input','textarea','select'].includes(tag);

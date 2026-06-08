@@ -7,7 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #E8E8E8; color: #333; min-height: 100vh; transition: background 0.3s, color 0.3s; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; color: #333; min-height: 100vh; transition: background 0.3s, color 0.3s; }
         .search-container { max-width: 600px; margin: 30px auto 20px; padding: 0 20px; }
         .search-box { display: flex; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         .search-engine { padding: 12px 15px; border: none; background: transparent; cursor: pointer; font-size: 14px; color: #666; }
@@ -212,14 +212,14 @@
             }
             return null;
         }
-        // ── ④ Favicon缓存（sessionStorage，页面内不重复请求） ──────
+        // ── ④ Favicon（sessionStorage缓存 + 正确检测占位符） ──────
         function createIconElement(link) {
             const iconSpan = document.createElement('span');
             iconSpan.className = 'link-icon';
             const firstChar = link.name.charAt(0).toUpperCase();
             const FAV_COLORS = ['#3b82f6','#8b5cf6','#06b6d4','#22c55e','#f97316','#ec4899','#ef4444','#0ea5e9'];
-            let domain = '', validUrl = false;
-            try { domain = new URL(link.url).hostname; validUrl = true; } catch {}
+            let domain = '', origin = '', validUrl = false;
+            try { const u = new URL(link.url); domain = u.hostname; origin = u.origin; validUrl = true; } catch {}
 
             function showLetter() {
                 let ci = (domain + link.name).charCodeAt(0) % FAV_COLORS.length;
@@ -227,40 +227,49 @@
                 iconSpan.textContent = firstChar;
             }
 
-            if (validUrl && domain && link.url !== '#') {
-                const cacheKey = `fav_${domain}`;
-                const cached = sessionStorage.getItem(cacheKey);
+            if (!validUrl || !domain || link.url === '#') { showLetter(); return iconSpan; }
 
-                if (cached === 'letter') {
-                    // 已知加载失败，直接显示字母
+            // ✅ 换用 fav2_ 前缀，避免使用旧缓存（旧缓存可能存了灰色占位图URL）
+            const cacheKey = `fav2_${domain}`;
+            const cached = sessionStorage.getItem(cacheKey);
+            if (cached === 'letter') { showLetter(); return iconSpan; }
+
+            const img = document.createElement('img');
+
+            // 加载策略：
+            // 1. Google sz=64：minW=17，加载后 naturalWidth≤16 说明是占位符，跳过
+            // 2. 直接从站点根路径取 /favicon.ico：最真实来源，404时触发onerror
+            // （不再使用DDG，因为它对未知站点返回灰色占位图而非404）
+            const sources = cached
+                ? [{ url: cached, minW: 0 }]
+                : [
+                    { url: `https://www.google.com/s2/favicons?domain=${domain}&sz=64`, minW: 17 },
+                    { url: `${origin}/favicon.ico`, minW: 0 },
+                ];
+
+            let idx = 0;
+            function tryNext() {
+                if (idx >= sources.length) {
+                    img.remove();
+                    sessionStorage.setItem(cacheKey, 'letter');
                     showLetter();
-                } else {
-                    const img = document.createElement('img');
-                    // 有缓存直接用；没有缓存依次尝试两个源
-                    const sources = cached
-                        ? [cached]
-                        : [`https://icons.duckduckgo.com/ip3/${domain}.ico`,
-                           `https://www.google.com/s2/favicons?domain=${domain}&sz=32`];
-                    let tryCount = 0;
-                    function tryNext() {
-                        if (tryCount >= sources.length) {
-                            img.remove();
-                            sessionStorage.setItem(cacheKey, 'letter'); // 缓存失败结果
-                            showLetter();
-                            return;
-                        }
-                        img.src = sources[tryCount++];
-                    }
-                    img.onload = () => {
-                        if (!cached) sessionStorage.setItem(cacheKey, img.src); // 缓存成功URL
-                    };
-                    img.onerror = tryNext;
-                    tryNext();
-                    iconSpan.appendChild(img);
+                    return;
                 }
-            } else {
-                showLetter();
+                const { url, minW } = sources[idx++];
+                img.dataset.minW = minW;
+                img.src = url;
             }
+            img.onload = function () {
+                // 检测 Google 占位符（请求64px但返回≤16px = 未找到真实图标）
+                if (parseInt(this.dataset.minW) > 0 && this.naturalWidth < parseInt(this.dataset.minW)) {
+                    tryNext();
+                    return;
+                }
+                if (!cached) sessionStorage.setItem(cacheKey, this.src); // 缓存成功URL
+            };
+            img.onerror = tryNext;
+            tryNext();
+            iconSpan.appendChild(img);
             return iconSpan;
         }
         const defaultData = {

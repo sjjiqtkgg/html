@@ -510,8 +510,37 @@
             modal.querySelector('#modalTitle').textContent = title;
             const fields = modal.querySelector('#modalFields');
             fields.innerHTML = '';
+            const esc = v => (v || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
             if (isLinkMode) {
-                fields.innerHTML = `<label>网址</label><input type="text" placeholder="https://..." value="${defaultValue.url || ''}" id="urlInput"><label style="margin-top:6px">名称（留空自动识别）</label><input type="text" placeholder="自动识别..." value="${defaultValue.name || ''}" id="nameInput">`;
+                fields.innerHTML = `
+                    <label>网址</label>
+                    <input type="text" placeholder="https://..." value="${esc(defaultValue.url)}" id="urlInput">
+                    <label style="margin-top:6px;display:flex;justify-content:space-between">
+                        <span>名称</span>
+                        <span style="font-weight:normal;color:#bbb;font-size:11px">留空自动识别</span>
+                    </label>
+                    <div style="display:flex;gap:6px;margin:8px 0 0">
+                        <input type="text" placeholder="自动识别..." value="${esc(defaultValue.name)}" id="nameInput" style="flex:1;margin:0">
+                        <button type="button" id="refetchBtn" title="重新从网站抓取名称" style="padding:6px 11px;background:none;border:1px solid #ddd;border-radius:6px;cursor:pointer;font-size:14px;flex-shrink:0;transition:background .15s">🔄</button>
+                    </div>
+                    <div id="fetchStatus" style="font-size:11px;color:#bbb;height:16px;margin-top:4px;padding-left:2px"></div>
+                `;
+                // ✅ 🔄 重新识别按钮
+                document.getElementById('refetchBtn').addEventListener('click', () => {
+                    const urlVal = document.getElementById('urlInput').value.trim();
+                    if (!urlVal) { document.getElementById('urlInput').focus(); return; }
+                    const fixedUrl = /^https?:\/\//i.test(urlVal) ? urlVal : 'https://' + urlVal;
+                    const nameInput = document.getElementById('nameInput');
+                    const status  = document.getElementById('fetchStatus');
+                    // 同步：立即用本地映射填入
+                    nameInput.value = fetchTitleFromUrl(fixedUrl);
+                    // 异步：尝试抓取真实网页标题
+                    status.textContent = '识别中…';
+                    fetchPageTitle(fixedUrl).then(t => {
+                        if (t) { nameInput.value = t; status.textContent = '✓ 来自网页标题'; }
+                        else     status.textContent = '已用本地匹配';
+                    }).catch(() => { status.textContent = '⚠ 网络请求失败'; });
+                });
                 currentModalCallback = () => {
                     const url = document.getElementById('urlInput').value.trim();
                     if (!url) { document.getElementById('urlInput').focus(); return false; }
@@ -519,7 +548,7 @@
                     return true;
                 };
             } else {
-                fields.innerHTML = `<label>${title}</label><input type="text" value="${defaultValue}" placeholder="请输入名称" id="nameInput">`;
+                fields.innerHTML = `<label>${title}</label><input type="text" value="${esc(defaultValue)}" placeholder="请输入名称" id="nameInput">`;
                 currentModalCallback = () => {
                     const val = document.getElementById('nameInput').value.trim();
                     if (!val) { document.getElementById('nameInput').focus(); return false; }
@@ -528,31 +557,21 @@
                 };
             }
             modal.style.display = 'flex';
-
-            // ✅ 自动聚焦第一个输入框
             const firstInput = fields.querySelector('input');
             if (firstInput) setTimeout(() => firstInput.focus(), 30);
-
             const closeModal = () => { modal.style.display = 'none'; };
-
             modal.querySelector('#modalConfirm').onclick = () => {
                 if (currentModalCallback && currentModalCallback()) closeModal();
             };
             modal.querySelector('#modalCancel').onclick = closeModal;
             modal.onclick = (e) => { if (e.target === modal) closeModal(); };
-
-            // ✅ Enter提交 / Esc关闭 / Tab锁定在modal内
             if (modal._kh) modal.removeEventListener('keydown', modal._kh);
             modal._kh = (e) => {
                 if (e.key === 'Enter' && e.target.tagName === 'INPUT') {
                     e.preventDefault();
                     if (currentModalCallback && currentModalCallback()) closeModal();
                 }
-                if (e.key === 'Escape') {
-                    e.stopPropagation();
-                    closeModal();
-                }
-                // Tab焦点锁定在modal内
+                if (e.key === 'Escape') { e.stopPropagation(); closeModal(); }
                 if (e.key === 'Tab') {
                     const focusable = [...content.querySelectorAll('input,button,select')].filter(el => !el.disabled);
                     const first = focusable[0], last = focusable[focusable.length - 1];

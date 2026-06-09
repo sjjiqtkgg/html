@@ -248,20 +248,20 @@
             }
             return null;
         }
-        // ── ④ Favicon持久缓存（localStorage + 30天过期） ──────────
+        // ── Favicon持久缓存（localStorage + 30天过期） ──────────
         const FAV_TTL = 30 * 24 * 60 * 60 * 1000;
 
         function getFavCache(domain) {
             try {
-                const raw = localStorage.getItem('fav3_' + domain);
+                const raw = localStorage.getItem('fav4_' + domain); // 新前缀 fav4_，绕过旧缓存
                 if (!raw) return null;
                 const { url, ts } = JSON.parse(raw);
-                if (Date.now() - ts > FAV_TTL) { localStorage.removeItem('fav3_' + domain); return null; }
+                if (Date.now() - ts > FAV_TTL) { localStorage.removeItem('fav4_' + domain); return null; }
                 return url;
             } catch { return null; }
         }
         function setFavCache(domain, url) {
-            try { localStorage.setItem('fav3_' + domain, JSON.stringify({ url, ts: Date.now() })); } catch {}
+            try { localStorage.setItem('fav4_' + domain, JSON.stringify({ url, ts: Date.now() })); } catch {}
         }
 
         function createIconElement(link) {
@@ -284,23 +284,33 @@
             if (cached === 'letter') { showLetter(); return iconSpan; }
 
             const img = document.createElement('img');
+            // 图标加载顺序：① 站点自身 /favicon.ico（国内最可靠） → ② DDG（带尺寸检测，屏蔽灰色占位图） → ③ 字母兜底
             const sources = cached
                 ? [{ url: cached }]
                 : [
-                    { url: `https://icons.duckduckgo.com/ip3/${domain}.ico` },
                     { url: `${origin}/favicon.ico` },
+                    { url: `https://icons.duckduckgo.com/ip3/${domain}.ico`, ddg: true },
                 ];
 
             let idx = 0;
             function tryNext() {
                 if (idx >= sources.length) {
-                    img.remove(); setFavCache(domain, 'letter'); showLetter(); return;
+                    img.remove();
+                    setFavCache(domain, 'letter');
+                    showLetter();
+                    return;
                 }
-                img.src = sources[idx++].url;
+                const src = sources[idx++];
+                img.src = src.url;
+                // 如果是 DDG 来源，标记用于检测占位图
+                if (src.ddg) img.dataset.ddg = '1';
+                else delete img.dataset.ddg;
             }
             img.onload = function () {
-                if (idx === 1 && this.naturalWidth === 16 && this.naturalHeight === 16) {
-                    tryNext(); return;
+                // 如果是 DDG 来源，且返回 16×16 占位图，跳过
+                if (img.dataset.ddg && this.naturalWidth === 16 && this.naturalHeight === 16) {
+                    tryNext();
+                    return;
                 }
                 if (!cached) setFavCache(domain, this.src);
             };

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>导航网站</title>
+    <title>导航网页</title>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -79,23 +79,11 @@
         .modal-buttons button { padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; }
         .modal-buttons .confirm { background: #333; color: #fff; }
         .modal-buttons .cancel { background: #e0e0e0; }
-        /* ── 微调合集 ── */
+        /* 微调 */
         .link-card:active { transform: scale(0.96); transition: transform .1s ease; }
-        @keyframes tabFadeIn {
-            from { opacity: 0; transform: translateY(5px); }
-            to   { opacity: 1; transform: translateY(0);   }
-        }
-        body.edit-mode::before {
-            content: '';
-            position: fixed; top: 0; left: 0; right: 0;
-            height: 3px; background: #f97316; z-index: 9999;
-        }
-        .search-box:focus-within {
-            box-shadow: 0 0 0 3px rgba(99,102,241,.15), 0 2px 10px rgba(0,0,0,.05);
-        }
-        body.dark .search-box:focus-within {
-            box-shadow: 0 0 0 3px rgba(99,102,241,.25), 0 2px 10px rgba(0,0,0,.3);
-        }
+        body.edit-mode::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: 3px; background: #f97316; z-index: 9999; }
+        .search-box:focus-within { box-shadow: 0 0 0 3px rgba(99,102,241,.15), 0 2px 10px rgba(0,0,0,.05); }
+        body.dark .search-box:focus-within { box-shadow: 0 0 0 3px rgba(99,102,241,.25), 0 2px 10px rgba(0,0,0,.3); }
         ::selection { background: #333; color: #fff; }
         body.dark ::selection { background: #6366f1; color: #fff; }
         #importFileInput { display: none; }
@@ -134,9 +122,11 @@
             </div>
         </div>
     </div>
+
     <script>
-        // ==================== 全局工具函数 ====================
+        // ==================== 工具函数 ====================
         function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
         function fetchTitleFromUrl(url) {
             try {
                 const host = new URL(url).hostname.replace(/^www\./i, '');
@@ -154,34 +144,7 @@
             } catch(e) { return '未命名'; }
         }
 
-        async function fetchPageTitle(url) {
-            const proxies = [
-                u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
-                u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-            ];
-            for (const makeProxy of proxies) {
-                try {
-                    const ctrl = new AbortController();
-                    const tid = setTimeout(() => ctrl.abort(), 5000);
-                    const res = await fetch(makeProxy(url), { signal: ctrl.signal });
-                    clearTimeout(tid);
-                    if (!res.ok) continue;
-                    const isAllorigins = makeProxy(url).includes('allorigins');
-                    const html = isAllorigins ? (await res.json()).contents : await res.text();
-                    const m = html?.match(/<title[^>]*>([^<]{1,80})<\/title>/i);
-                    if (m?.[1]) {
-                        const title = m[1].trim().split(/\s*[|\-–·—\/\\]\s*/).shift().trim().slice(0, 40);
-                        if (title) return title;
-                    }
-                } catch(e) { }
-            }
-            return null;
-        }
-
-        // ==================== Cloudflare Workers 图标服务 ====================
-        // 部署 Worker 后，将下面地址替换为你的 Worker 地址（可绑定自定义域名）
-        const WORKER_URL = 'https://6657930.kdns.fr';  // ← 替换为你的实际地址
-
+        // ==================== 图标获取：国内 API + 字母降级 ====================
         function createIconElement(link) {
             const iconSpan = document.createElement('span');
             iconSpan.className = 'link-icon';
@@ -199,10 +162,9 @@
             if (!validUrl || !domain || link.url === '#') { showLetter(); return iconSpan; }
 
             const img = document.createElement('img');
-            img.src = `${WORKER_URL}/?domain=${encodeURIComponent(domain)}`;
+            img.src = 'https://favicon.byfu.xyz/icon?url=' + domain;
 
             img.onload = function () {
-                // Worker 可能会返回一个极小的占位图（≤16px），做最后一道防线
                 if (this.naturalWidth <= 16 && this.naturalHeight <= 16) {
                     img.remove(); showLetter();
                 }
@@ -213,7 +175,7 @@
             return iconSpan;
         }
 
-        // ==================== 数据定义与初始化 ====================
+        // ==================== 数据管理 ====================
         const defaultData = {
             tabs: [ { id: uid(), name: '日常', categories: [
                 { id: uid(), name: '社交', links: [ { id: uid(), name: '爱达杂货铺', url: 'https://aidazahuopu.com' }, { id: uid(), name: '今日热榜', url: 'https://tophub.today' }, { id: uid(), name: 'Spotify', url: 'https://open.spotify.com' }, { id: uid(), name: '微博', url: 'https://weibo.com' }, { id: uid(), name: 'Yandex', url: 'https://yandex.com' } ] },
@@ -256,6 +218,7 @@
         }
 
         function render() { renderTabs(); renderAllCategories(); }
+
         function renderTabs() {
             const tabBar = document.getElementById('tabBar'); tabBar.innerHTML = '';
             appData.tabs.forEach(tab => {
@@ -279,6 +242,7 @@
                 tabBar.appendChild(addTabBtn);
             }
         }
+
         function renderAllCategories() {
             const activeTab = appData.tabs.find(t => t.id === appData.activeTabId);
             const container = document.getElementById('categoriesGrid');
@@ -347,16 +311,6 @@
                             const newCard = createLinkCard(latestCat, newLink);
                             linksRow.insertBefore(newCard, addLinkBtn);
                             saveData();
-                            if (!newName?.trim()) {
-                                const nameEl = newCard.querySelector('.link-name');
-                                fetchPageTitle(newUrl).then(fetched => {
-                                    if (fetched && fetched !== immediateTitle) {
-                                        newLink.name = fetched;
-                                        if (nameEl) nameEl.textContent = fetched;
-                                        saveData();
-                                    }
-                                }).catch(() => {});
-                            }
                         }, true);
                     });
                     linksRow.appendChild(addLinkBtn);
@@ -391,13 +345,39 @@
                 });
             }
         }
+
         function createLinkCard(cat, link) {
-            const card = document.createElement('div'); card.className = 'link-card'; card.dataset.linkId = link.id; card.draggable = editMode;
+            const card = document.createElement('div');
+            card.className = 'link-card';
+            card.dataset.linkId = link.id;
+            card.draggable = editMode;
             card.appendChild(createIconElement(link));
-            const nameSpan = document.createElement('span'); nameSpan.className = 'link-name'; nameSpan.textContent = link.name; card.appendChild(nameSpan);
-            card.addEventListener('click', (e) => { if (editMode) return; if (link.url && link.url !== '#') window.open(link.url, '_blank'); else alert('该链接尚未配置有效网址，请编辑后使用。'); });
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'link-name';
+            nameSpan.textContent = link.name;
+            card.appendChild(nameSpan);
+
+            // 左键打开
+            card.addEventListener('click', (e) => {
+                if (editMode) return;
+                if (e.button !== 0) return; // 只处理左键
+                if (link.url && link.url !== '#') window.open(link.url, '_blank');
+                else alert('该链接尚未配置有效网址，请编辑后使用。');
+            });
+
+            // 中键打开（修复中键失效）
+            card.addEventListener('auxclick', (e) => {
+                if (editMode) return;
+                if (e.button === 1) { // 中键
+                    e.preventDefault();
+                    if (link.url && link.url !== '#') window.open(link.url, '_blank');
+                    else alert('该链接尚未配置有效网址，请编辑后使用。');
+                }
+            });
+
             if (editMode) {
-                const actions = document.createElement('div'); actions.className = 'link-card-actions';
+                const actions = document.createElement('div');
+                actions.className = 'link-card-actions';
                 const editBtn = document.createElement('button'); editBtn.textContent = '✎'; 
                 editBtn.addEventListener('click', (e) => { 
                     e.stopPropagation(); 
@@ -414,9 +394,6 @@
                         } else {
                             latestLink.name = fetchTitleFromUrl(targetUrl);
                             render(); saveData();
-                            fetchPageTitle(targetUrl).then(fetched => {
-                                if (fetched) { latestLink.name = fetched; render(); saveData(); }
-                            }).catch(() => {});
                         }
                     }); 
                 });
@@ -439,11 +416,10 @@
             return card;
         }
 
-        // ==================== Modal 弹窗 ====================
+        // ==================== Modal ====================
         let currentModalCallback = null;
         function openModal(title, defaultValue, callback, isLinkMode = false) {
             const modal = document.getElementById('modal');
-            const content = modal.querySelector('.modal-content');
             modal.querySelector('#modalTitle').textContent = title;
             const fields = modal.querySelector('#modalFields');
             fields.innerHTML = '';
@@ -456,25 +432,8 @@
                         <span>名称</span>
                         <span style="font-weight:normal;color:#bbb;font-size:11px">留空自动识别</span>
                     </label>
-                    <div style="display:flex;gap:6px;margin:8px 0 0">
-                        <input type="text" placeholder="自动识别..." value="${esc(defaultValue.name)}" id="nameInput" style="flex:1;margin:0">
-                        <button type="button" id="refetchBtn" title="重新从网站抓取名称" style="padding:6px 11px;background:none;border:1px solid #ddd;border-radius:6px;cursor:pointer;font-size:14px;flex-shrink:0;transition:background .15s">🔄</button>
-                    </div>
-                    <div id="fetchStatus" style="font-size:11px;color:#bbb;height:16px;margin-top:4px;padding-left:2px"></div>
+                    <input type="text" placeholder="自动识别..." value="${esc(defaultValue.name)}" id="nameInput">
                 `;
-                document.getElementById('refetchBtn').addEventListener('click', () => {
-                    const urlVal = document.getElementById('urlInput').value.trim();
-                    if (!urlVal) { document.getElementById('urlInput').focus(); return; }
-                    const fixedUrl = /^https?:\/\//i.test(urlVal) ? urlVal : 'https://' + urlVal;
-                    const nameInput = document.getElementById('nameInput');
-                    const status  = document.getElementById('fetchStatus');
-                    nameInput.value = fetchTitleFromUrl(fixedUrl);
-                    status.textContent = '识别中…';
-                    fetchPageTitle(fixedUrl).then(t => {
-                        if (t) { nameInput.value = t; status.textContent = '✓ 来自网页标题'; }
-                        else     status.textContent = '已用本地匹配';
-                    }).catch(() => { status.textContent = '⚠ 网络请求失败'; });
-                });
                 currentModalCallback = () => {
                     const url = document.getElementById('urlInput').value.trim();
                     if (!url) { document.getElementById('urlInput').focus(); return false; }
@@ -494,30 +453,15 @@
             const firstInput = fields.querySelector('input');
             if (firstInput) setTimeout(() => firstInput.focus(), 30);
             const closeModal = () => { modal.style.display = 'none'; };
-            modal.querySelector('#modalConfirm').onclick = () => {
-                if (currentModalCallback && currentModalCallback()) closeModal();
-            };
+            modal.querySelector('#modalConfirm').onclick = () => { if (currentModalCallback && currentModalCallback()) closeModal(); };
             modal.querySelector('#modalCancel').onclick = closeModal;
             modal.onclick = (e) => { if (e.target === modal) closeModal(); };
-            if (modal._kh) modal.removeEventListener('keydown', modal._kh);
-            modal._kh = (e) => {
-                if (e.key === 'Enter' && e.target.tagName === 'INPUT') {
-                    e.preventDefault();
-                    if (currentModalCallback && currentModalCallback()) closeModal();
-                }
-                if (e.key === 'Escape') { e.stopPropagation(); closeModal(); }
-                if (e.key === 'Tab') {
-                    const focusable = [...content.querySelectorAll('input,button,select')].filter(el => !el.disabled);
-                    const first = focusable[0], last = focusable[focusable.length - 1];
-                    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-                    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
-                }
-            };
-            modal.addEventListener('keydown', modal._kh);
         }
         function openLinkModal(link, callback, isNew = false) { const defaultValue = link ? { name: link.name, url: link.url } : { name: '', url: '' }; openModal(isNew ? '添加链接' : '编辑链接', defaultValue, callback, true); }
+
         function toggleEditMode() { editMode = !editMode; document.body.classList.toggle('edit-mode', editMode); document.getElementById('editModeBtn').classList.toggle('active', editMode); render(); }
         function toggleTheme() { isDark = !isDark; if (isDark) document.body.classList.add('dark'); else document.body.classList.remove('dark'); localStorage.setItem('startpage_theme', isDark ? 'dark' : 'light'); }
+
         function performSearch() {
             const query = document.getElementById('searchInput').value.trim(); if (!query) return;
             if (/^[\w.-]+\.[a-zA-Z]{2,}(\/|$)?$/.test(query) && !query.includes(' ')) { window.open('https://' + query, '_blank'); return; }
@@ -527,10 +471,11 @@
             else url = `https://www.bing.com/search?q=${encodeURIComponent(query)}`;
             window.open(url, '_blank');
         }
+
         function exportConfig() { const blob = new Blob([JSON.stringify(appData, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `startpage_backup_${new Date().toISOString().slice(0,10)}.json`; a.click(); }
         function importConfig(file) { const reader = new FileReader(); reader.onload = (e) => { try { const data = JSON.parse(e.target.result); if (data.tabs && Array.isArray(data.tabs)) { appData = data; saveData(); render(); alert('配置导入成功！'); } else alert('无效的配置文件'); } catch (ex) { alert('解析失败'); } }; reader.readAsText(file); }
 
-        // ==================== 键盘快捷键 ====================
+        // 快捷键
         document.addEventListener('keydown', (e) => {
             const tag = document.activeElement?.tagName?.toLowerCase();
             const inInput = ['input','textarea','select'].includes(tag);
@@ -547,7 +492,6 @@
             if ((e.key === 'e' || e.key === 'E') && !e.ctrlKey && !e.metaKey) { toggleEditMode(); }
         });
 
-        // ==================== 初始化 ====================
         function init() {
             loadData();
             if (localStorage.getItem('startpage_theme') === 'dark') { isDark = true; document.body.classList.add('dark'); }

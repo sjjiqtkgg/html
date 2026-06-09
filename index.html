@@ -79,48 +79,26 @@
         .modal-buttons button { padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; }
         .modal-buttons .confirm { background: #333; color: #fff; }
         .modal-buttons .cancel { background: #e0e0e0; }
-        /* ══ 微调合集 ══════════════════════════════════════════════ */
-
-        /* 1. 链接卡片点击微弹 */
+        /* ── 微调合集 ── */
         .link-card:active { transform: scale(0.96); transition: transform .1s ease; }
-
-        /* 2. 标签切换内容淡入 */
         @keyframes tabFadeIn {
             from { opacity: 0; transform: translateY(5px); }
             to   { opacity: 1; transform: translateY(0);   }
         }
-        .cats-view.tab-enter { animation: tabFadeIn .18s ease forwards; }
-
-        /* 3. 编辑模式顶部橙色指示条 */
         body.edit-mode::before {
             content: '';
             position: fixed; top: 0; left: 0; right: 0;
             height: 3px; background: #f97316; z-index: 9999;
         }
-
-        /* 4. 搜索框聚焦光晕 */
         .search-box:focus-within {
             box-shadow: 0 0 0 3px rgba(99,102,241,.15), 0 2px 10px rgba(0,0,0,.05);
         }
         body.dark .search-box:focus-within {
             box-shadow: 0 0 0 3px rgba(99,102,241,.25), 0 2px 10px rgba(0,0,0,.3);
         }
-
-        /* 5. 分类行 hover 左侧色条 */
-        .cat-row { border-left: 2px solid transparent; padding-left: 10px; transition: border-color .15s; }
-        .cat-row:hover { border-left-color: #e5e7eb; }
-        body.dark .cat-row:hover { border-left-color: #333; }
-
-        /* 6. 文字选中颜色配主题 */
         ::selection { background: #333; color: #fff; }
         body.dark ::selection { background: #6366f1; color: #fff; }
-
-        /* ══════════════════════════════════════════════════════════ */
         #importFileInput { display: none; }
-        /* ── ① 识别中状态（favicon异步抓取期间） ── */
-        @keyframes sp-blink { 0%,100%{opacity:.45} 50%{opacity:1} }
-        .link-name.fetching { animation: sp-blink 1.1s ease infinite; }
-        /* ── Modal细节 ── */
         body.dark .modal-content input { background: #1a1a1a; border-color: #555; color: #e0e0e0; }
         .modal-content label { font-size: 13px; color: #888; display: block; margin-bottom: 2px; }
     </style>
@@ -157,72 +135,25 @@
         </div>
     </div>
     <script>
+        // ==================== 全局工具函数 ====================
         function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
-        // ── 本地名称映射（快速同步fallback） ──────────────────────
         function fetchTitleFromUrl(url) {
             try {
                 const host = new URL(url).hostname.replace(/^www\./i, '');
                 const base = host.replace(/\.(com|net|org|cn|io|ai|app|dev|me|co|tv|cc|xyz|top|online|store|tech|news|wiki)(\.[a-z]{2})?$/i, '');
                 const MAP = {
-                    // AI
-                    'chat.openai':'ChatGPT','openai':'OpenAI','deepseek':'DeepSeek',
-                    'claude':'Claude','anthropic':'Claude','gemini':'Gemini',
-                    'tongyi.aliyun':'通义千问','tongyi':'通义千问','qwen':'通义千问',
-                    'kimi':'Kimi','moonshot':'Kimi','mistral':'Mistral',
-                    'cursor':'Cursor','copilot':'Copilot','perplexity':'Perplexity',
-                    'cohere':'Cohere','groq':'Groq','huggingface':'HuggingFace',
-                    // 社交
-                    'github':'GitHub','twitter':'Twitter','x':'X',
-                    'weibo':'微博','zhihu':'知乎','bilibili':'哔哩哔哩',
-                    'spotify':'Spotify','yandex':'Yandex','reddit':'Reddit',
-                    'tophub':'今日热榜','aidazahuopu':'爱达杂货铺',
-                    '0x3':'0x3','xhs':'小红书','xiaohongshu':'小红书','douyin':'抖音',
-                    'instagram':'Instagram','facebook':'Facebook','linkedin':'LinkedIn',
-                    // 地图/日历/天气
-                    'map.baidu':'百度地图','baidu':'百度',
-                    'weather':'天气','weather.com':'天气',
-                    'calendar.google':'Google日历','calendar':'日历',
-                    // 新闻/门户
-                    'guancha':'观察者网','huanqiu':'环球网',
-                    'thepaper':'澎湃新闻','163':'网易','sina':'新浪',
-                    'people':'人民网','xinhua':'新华网',
-                    // 工具
-                    'pdfpai':'PDF工具','alltoall':'在线转换',
-                    'wormhole':'Wormhole','excalidraw':'Excalidraw',
-                    'regexr':'RegExr','caniuse':'Can I Use',
-                    'developer.mozilla':'MDN','stackoverflow':'Stack Overflow',
-                    'npmjs':'npm','pypi':'PyPI','crates':'crates.io',
-                    'translate.google':'Google翻译','deepl':'DeepL',
-                    'notion':'Notion','figma':'Figma','canva':'Canva',
-                    // 影视/音乐
-                    'novip':'noVIP','cmoontv':'小C影视','libertv':'LibertTV',
-                    'ppnix':'PP播','youtube':'YouTube','netflix':'Netflix',
-                    'iqiyi':'爱奇艺','youku':'优酷','mgtv':'芒果TV',
-                    // 邮件
-                    'mail.qq':'QQ邮箱','mail.163':'网易邮箱','mail.126':'126邮箱',
-                    'outlook':'Outlook','gmail':'Gmail','protonmail':'ProtonMail',
-                    // 网络/CF
-                    'itdog':'itdog','boce':'波次检测','ping':'Ping',
-                    'cloudflare':'Cloudflare','vercel':'Vercel',
-                    'render':'Render','railway':'Railway',
-                    // 购物
-                    'taobao':'淘宝','jd':'京东','amazon':'Amazon',
-                    'pinduoduo':'拼多多',
+                    'chat.openai':'ChatGPT','openai':'OpenAI','deepseek':'DeepSeek','claude':'Claude','anthropic':'Claude','gemini':'Gemini','tongyi.aliyun':'通义千问','tongyi':'通义千问','qwen':'通义千问','kimi':'Kimi','moonshot':'Kimi','mistral':'Mistral','cursor':'Cursor','copilot':'Copilot','perplexity':'Perplexity','cohere':'Cohere','groq':'Groq','huggingface':'HuggingFace','github':'GitHub','twitter':'Twitter','x':'X','weibo':'微博','zhihu':'知乎','bilibili':'哔哩哔哩','spotify':'Spotify','yandex':'Yandex','reddit':'Reddit','tophub':'今日热榜','aidazahuopu':'爱达杂货铺','xhs':'小红书','xiaohongshu':'小红书','douyin':'抖音','instagram':'Instagram','facebook':'Facebook','linkedin':'LinkedIn','map.baidu':'百度地图','baidu':'百度','weather':'天气','weather.com':'天气','calendar.google':'Google日历','calendar':'日历','guancha':'观察者网','huanqiu':'环球网','thepaper':'澎湃新闻','163':'网易','sina':'新浪','people':'人民网','xinhua':'新华网','pdfpai':'PDF工具','alltoall':'在线转换','wormhole':'Wormhole','excalidraw':'Excalidraw','regexr':'RegExr','caniuse':'Can I Use','developer.mozilla':'MDN','stackoverflow':'Stack Overflow','npmjs':'npm','pypi':'PyPI','crates':'crates.io','translate.google':'Google翻译','deepl':'DeepL','notion':'Notion','figma':'Figma','canva':'Canva','novip':'noVIP','cmoontv':'小C影视','libertv':'LibertTV','ppnix':'PP播','youtube':'YouTube','netflix':'Netflix','iqiyi':'爱奇艺','youku':'优酷','mgtv':'芒果TV','mail.qq':'QQ邮箱','mail.163':'网易邮箱','mail.126':'126邮箱','outlook':'Outlook','gmail':'Gmail','protonmail':'ProtonMail','itdog':'itdog','boce':'波次检测','ping':'Ping','cloudflare':'Cloudflare','vercel':'Vercel','render':'Render','railway':'Railway','taobao':'淘宝','jd':'京东','amazon':'Amazon','pinduoduo':'拼多多'
                 };
-                // 精确匹配
                 if (MAP[host]) return MAP[host];
                 if (MAP[base]) return MAP[base];
-                // 部分包含匹配
                 for (const [k, v] of Object.entries(MAP)) {
                     if (host.includes(k) || base.includes(k)) return v;
                 }
-                // 通用：取主域名首字母大写
                 const main = base.split('.').slice(-1)[0] || base;
                 return main.replace(/-/g,' ').replace(/\b\w/g, s => s.toUpperCase());
             } catch(e) { return '未命名'; }
         }
 
-        // ── 真实异步标题抓取（通过CORS代理读网页<title>） ───────────
         async function fetchPageTitle(url) {
             const proxies = [
                 u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
@@ -239,38 +170,25 @@
                     const html = isAllorigins ? (await res.json()).contents : await res.text();
                     const m = html?.match(/<title[^>]*>([^<]{1,80})<\/title>/i);
                     if (m?.[1]) {
-                        const title = m[1].trim()
-                            .split(/\s*[|\-–·—\/\\]\s*/).shift()
-                            .trim().slice(0, 40);
+                        const title = m[1].trim().split(/\s*[|\-–·—\/\\]\s*/).shift().trim().slice(0, 40);
                         if (title) return title;
                     }
                 } catch(e) { }
             }
             return null;
         }
-        // ── Favicon持久缓存（localStorage + 30天过期） ──────────
-        const FAV_TTL = 30 * 24 * 60 * 60 * 1000;
 
-        function getFavCache(domain) {
-            try {
-                const raw = localStorage.getItem('fav4_' + domain); // 新前缀 fav4_，绕过旧缓存
-                if (!raw) return null;
-                const { url, ts } = JSON.parse(raw);
-                if (Date.now() - ts > FAV_TTL) { localStorage.removeItem('fav4_' + domain); return null; }
-                return url;
-            } catch { return null; }
-        }
-        function setFavCache(domain, url) {
-            try { localStorage.setItem('fav4_' + domain, JSON.stringify({ url, ts: Date.now() })); } catch {}
-        }
+        // ==================== Cloudflare Workers 图标服务 ====================
+        // 部署 Worker 后，将下面地址替换为你的 Worker 地址（可绑定自定义域名）
+        const WORKER_URL = 'https://6657930.kdns.fr';  // ← 替换为你的实际地址
 
         function createIconElement(link) {
             const iconSpan = document.createElement('span');
             iconSpan.className = 'link-icon';
             const firstChar = link.name.charAt(0).toUpperCase();
             const FAV_COLORS = ['#3b82f6','#8b5cf6','#06b6d4','#22c55e','#f97316','#ec4899','#ef4444','#0ea5e9'];
-            let domain = '', origin = '', validUrl = false;
-            try { const u = new URL(link.url); domain = u.hostname; origin = u.origin; validUrl = true; } catch {}
+            let domain = '', validUrl = false;
+            try { const u = new URL(link.url); domain = u.hostname; validUrl = true; } catch {}
 
             function showLetter() {
                 let ci = (domain + link.name).charCodeAt(0) % FAV_COLORS.length;
@@ -280,45 +198,22 @@
 
             if (!validUrl || !domain || link.url === '#') { showLetter(); return iconSpan; }
 
-            const cached = getFavCache(domain);
-            if (cached === 'letter') { showLetter(); return iconSpan; }
-
             const img = document.createElement('img');
-            // 图标加载顺序：① 站点自身 /favicon.ico（国内最可靠） → ② DDG（带尺寸检测，屏蔽灰色占位图） → ③ 字母兜底
-            const sources = cached
-                ? [{ url: cached }]
-                : [
-                    { url: `${origin}/favicon.ico` },
-                    { url: `https://icons.duckduckgo.com/ip3/${domain}.ico`, ddg: true },
-                ];
+            img.src = `${WORKER_URL}/?domain=${encodeURIComponent(domain)}`;
 
-            let idx = 0;
-            function tryNext() {
-                if (idx >= sources.length) {
-                    img.remove();
-                    setFavCache(domain, 'letter');
-                    showLetter();
-                    return;
-                }
-                const src = sources[idx++];
-                img.src = src.url;
-                // 如果是 DDG 来源，标记用于检测占位图
-                if (src.ddg) img.dataset.ddg = '1';
-                else delete img.dataset.ddg;
-            }
             img.onload = function () {
-                // 如果是 DDG 来源，且返回 16×16 占位图，跳过
-                if (img.dataset.ddg && this.naturalWidth === 16 && this.naturalHeight === 16) {
-                    tryNext();
-                    return;
+                // Worker 可能会返回一个极小的占位图（≤16px），做最后一道防线
+                if (this.naturalWidth <= 16 && this.naturalHeight <= 16) {
+                    img.remove(); showLetter();
                 }
-                if (!cached) setFavCache(domain, this.src);
             };
-            img.onerror = tryNext;
-            tryNext();
+            img.onerror = function () { img.remove(); showLetter(); };
+
             iconSpan.appendChild(img);
             return iconSpan;
         }
+
+        // ==================== 数据定义与初始化 ====================
         const defaultData = {
             tabs: [ { id: uid(), name: '日常', categories: [
                 { id: uid(), name: '社交', links: [ { id: uid(), name: '爱达杂货铺', url: 'https://aidazahuopu.com' }, { id: uid(), name: '今日热榜', url: 'https://tophub.today' }, { id: uid(), name: 'Spotify', url: 'https://open.spotify.com' }, { id: uid(), name: '微博', url: 'https://weibo.com' }, { id: uid(), name: 'Yandex', url: 'https://yandex.com' } ] },
@@ -330,12 +225,14 @@
         let appData = JSON.parse(JSON.stringify(defaultData));
         let editMode = false, isDark = false;
         const STORAGE_KEY = 'startpage_editable_v3';
+
         function loadData() {
             const saved = localStorage.getItem(STORAGE_KEY);
             if (saved) { try { const parsed = JSON.parse(saved); if (parsed.tabs && parsed.tabs.length) appData = parsed; } catch(e) {} }
             if (!appData.tabs.find(t => t.id === appData.activeTabId) && appData.tabs.length) appData.activeTabId = appData.tabs[0].id;
         }
         function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); }
+
         function syncDataFromDOM() {
             const activeTab = appData.tabs.find(t => t.id === appData.activeTabId);
             if (!activeTab) return;
@@ -357,16 +254,8 @@
             activeTab.categories = newCategories;
             saveData();
         }
-        function render() {
-            renderTabs();
-            const view = document.getElementById('catsView');
-            if (view) {
-                view.classList.remove('tab-enter');
-                void view.offsetWidth;
-                view.classList.add('tab-enter');
-            }
-            renderAllCategories();
-        }
+
+        function render() { renderTabs(); renderAllCategories(); }
         function renderTabs() {
             const tabBar = document.getElementById('tabBar'); tabBar.innerHTML = '';
             appData.tabs.forEach(tab => {
@@ -449,18 +338,15 @@
                         openLinkModal(null, (newName, newUrl) => {
                             if (!newUrl) return;
                             if (!/^https?:\/\//i.test(newUrl)) newUrl = 'https://' + newUrl;
-                            
                             const currentTab = appData.tabs.find(t => t.id === appData.activeTabId);
                             const latestCat = currentTab?.categories.find(c => c.id === cat.id);
                             if (!latestCat) return;
-                            
                             const immediateTitle = newName?.trim() || fetchTitleFromUrl(newUrl);
                             const newLink = { id: uid(), name: immediateTitle, url: newUrl };
                             latestCat.links.push(newLink);
                             const newCard = createLinkCard(latestCat, newLink);
                             linksRow.insertBefore(newCard, addLinkBtn);
                             saveData();
-                            
                             if (!newName?.trim()) {
                                 const nameEl = newCard.querySelector('.link-name');
                                 fetchPageTitle(newUrl).then(fetched => {
@@ -552,8 +438,9 @@
             }
             return card;
         }
+
+        // ==================== Modal 弹窗 ====================
         let currentModalCallback = null;
-        // ── ① Modal：自动聚焦 / Enter提交 / Esc关闭 / Tab焦点锁定 ──
         function openModal(title, defaultValue, callback, isLinkMode = false) {
             const modal = document.getElementById('modal');
             const content = modal.querySelector('.modal-content');
@@ -643,11 +530,11 @@
         function exportConfig() { const blob = new Blob([JSON.stringify(appData, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `startpage_backup_${new Date().toISOString().slice(0,10)}.json`; a.click(); }
         function importConfig(file) { const reader = new FileReader(); reader.onload = (e) => { try { const data = JSON.parse(e.target.result); if (data.tabs && Array.isArray(data.tabs)) { appData = data; saveData(); render(); alert('配置导入成功！'); } else alert('无效的配置文件'); } catch (ex) { alert('解析失败'); } }; reader.readAsText(file); }
 
+        // ==================== 键盘快捷键 ====================
         document.addEventListener('keydown', (e) => {
             const tag = document.activeElement?.tagName?.toLowerCase();
             const inInput = ['input','textarea','select'].includes(tag);
             const modalOpen = document.getElementById('modal').style.display === 'flex';
-
             if (e.key === 'Escape') {
                 if (modalOpen) { document.getElementById('modal').style.display = 'none'; return; }
                 if (editMode) { toggleEditMode(); return; }
@@ -655,25 +542,15 @@
                 return;
             }
             if (inInput || modalOpen) return;
-
-            if (e.key === '/') {
-                e.preventDefault();
-                document.getElementById('searchInput').focus();
-                return;
-            }
-            if (e.ctrlKey && e.key === 'k') {
-                e.preventDefault();
-                document.getElementById('searchInput').focus();
-                return;
-            }
-            if ((e.key === 'e' || e.key === 'E') && !e.ctrlKey && !e.metaKey) {
-                toggleEditMode();
-                return;
-            }
+            if (e.key === '/') { e.preventDefault(); document.getElementById('searchInput').focus(); }
+            if (e.ctrlKey && e.key === 'k') { e.preventDefault(); document.getElementById('searchInput').focus(); }
+            if ((e.key === 'e' || e.key === 'E') && !e.ctrlKey && !e.metaKey) { toggleEditMode(); }
         });
+
+        // ==================== 初始化 ====================
         function init() {
             loadData();
-            const savedTheme = localStorage.getItem('startpage_theme'); if (savedTheme === 'dark') { isDark = true; document.body.classList.add('dark'); }
+            if (localStorage.getItem('startpage_theme') === 'dark') { isDark = true; document.body.classList.add('dark'); }
             render();
             document.getElementById('editModeBtn').addEventListener('click', toggleEditMode);
             document.getElementById('themeToggleBtn').addEventListener('click', toggleTheme);

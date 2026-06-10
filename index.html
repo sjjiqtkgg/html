@@ -392,10 +392,29 @@
             }
         }
         function createLinkCard(cat, link) {
-            const card = document.createElement('div'); card.className = 'link-card'; card.dataset.linkId = link.id; card.draggable = editMode;
+            // ✅ 用 <a> 代替 <div>，浏览器原生处理中键/Ctrl+点击/右键菜单
+            const card = document.createElement('a');
+            card.className = 'link-card';
+            card.dataset.linkId = link.id;
+            card.draggable = editMode;
+            card.rel = 'noopener noreferrer';
+            if (link.url && link.url !== '#') {
+                card.href = link.url;
+                card.target = '_blank';
+            } else {
+                card.href = 'javascript:void(0)';
+            }
             card.appendChild(createIconElement(link));
             const nameSpan = document.createElement('span'); nameSpan.className = 'link-name'; nameSpan.textContent = link.name; card.appendChild(nameSpan);
-            card.addEventListener('click', (e) => { if (editMode) return; if (link.url && link.url !== '#') window.open(link.url, '_blank'); else alert('该链接尚未配置有效网址，请编辑后使用。'); });
+            card.addEventListener('click', (e) => {
+                if (editMode) { e.preventDefault(); return; } // 编辑模式禁止跳转
+                if (!link.url || link.url === '#') { e.preventDefault(); alert('该链接尚未配置有效网址，请编辑后使用。'); }
+                // 正常模式：<a> 原生处理跳转，无需 window.open
+            });
+            // 编辑模式拖拽时防止浏览器触发 <a> 的默认拖链接行为
+            card.addEventListener('dragstart', (e) => {
+                if (!editMode) e.preventDefault();
+            });
             if (editMode) {
                 const actions = document.createElement('div'); actions.className = 'link-card-actions';
                 const editBtn = document.createElement('button'); editBtn.textContent = '✎'; 

@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>导航网站</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='none' stroke='%234a90d9' stroke-width='12'/%3E%3Ccircle cx='50' cy='50' r='22' fill='%234a90d9'/%3E%3C/svg%3E">
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js">
+    </script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; color: #333; min-height: 100vh; transition: background 0.3s, color 0.3s; }
@@ -80,7 +81,6 @@
         .modal-buttons button { padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; }
         .modal-buttons .confirm { background: #333; color: #fff; }
         .modal-buttons .cancel { background: #e0e0e0; }
-        /* ── 微调合集 ── */
         .link-card:active { transform: scale(0.96); transition: transform .1s ease; }
         @keyframes tabFadeIn {
             from { opacity: 0; transform: translateY(5px); }
@@ -136,6 +136,45 @@
         </div>
     </div>
     <script>
+        // ==================== 图标缓存模块 ====================
+        const ICON_CACHE_PREFIX = 'favicon_cache_';
+        const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000; // 1 年（毫秒）
+
+        function getCachedIcon(domain) {
+            try {
+                const item = localStorage.getItem(ICON_CACHE_PREFIX + domain);
+                if (!item) return null;
+                const data = JSON.parse(item);
+                if (Date.now() - data.timestamp < ONE_YEAR_MS) {
+                    return data.base64;
+                }
+                // 过期则删除
+                localStorage.removeItem(ICON_CACHE_PREFIX + domain);
+            } catch (e) {}
+            return null;
+        }
+
+        function setCachedIcon(domain, base64) {
+            try {
+                const data = {
+                    base64: base64,
+                    timestamp: Date.now()
+                };
+                localStorage.setItem(ICON_CACHE_PREFIX + domain, JSON.stringify(data));
+            } catch (e) {
+                // 存储空间满时清除旧缓存，简单处理：清除所有图标缓存
+                if (e.name === 'QuotaExceededError') {
+                    for (let i = localStorage.length - 1; i >= 0; i--) {
+                        const key = localStorage.key(i);
+                        if (key.startsWith(ICON_CACHE_PREFIX)) {
+                            localStorage.removeItem(key);
+                        }
+                    }
+                    try { localStorage.setItem(ICON_CACHE_PREFIX + domain, JSON.stringify(data)); } catch (e2) {}
+                }
+            }
+        }
+
         // ==================== 全局工具函数 ====================
         function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
         function fetchTitleFromUrl(url) {
@@ -179,10 +218,9 @@
             return null;
         }
 
-        // ==================== Cloudflare Workers 图标服务 ====================
-        // 部署 Worker 后，将下面地址替换为你的 Worker 地址（可绑定自定义域名）
-        const WORKER_URL = 'https://6657930.kdns.fr';  // ← 替换为你的实际地址
+        const WORKER_URL = 'https://6657930.kdns.fr'; // 你的 Worker 地址
 
+        // 修改后的图标创建函数，包含本地缓存逻辑
         function createIconElement(link) {
             const iconSpan = document.createElement('span');
             iconSpan.className = 'link-icon';
@@ -199,13 +237,35 @@
 
             if (!validUrl || !domain || link.url === '#') { showLetter(); return iconSpan; }
 
+            // 先检查缓存
+            const cached = getCachedIcon(domain);
+            if (cached) {
+                // 命中缓存，直接使用 base64 显示
+                const img = document.createElement('img');
+                img.src = cached;
+                img.onerror = function () { img.remove(); showLetter(); };
+                iconSpan.appendChild(img);
+                return iconSpan;
+            }
+
+            // 没有缓存，请求 Worker
             const img = document.createElement('img');
             img.src = `${WORKER_URL}/?domain=${encodeURIComponent(domain)}`;
 
             img.onload = function () {
-                // Worker 可能会返回一个极小的占位图（≤16px），做最后一道防线
                 if (this.naturalWidth <= 16 && this.naturalHeight <= 16) {
                     img.remove(); showLetter();
+                } else {
+                    // 将加载成功的图片转为 base64 并缓存
+                    try {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = this.naturalWidth;
+                        canvas.height = this.naturalHeight;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(this, 0, 0);
+                        const base64 = canvas.toDataURL('image/png');
+                        setCachedIcon(domain, base64);
+                    } catch (e) { /* 跨域等异常不缓存，但 Worker 已设 CORS，一般没问题 */ }
                 }
             };
             img.onerror = function () { img.remove(); showLetter(); };
@@ -214,7 +274,7 @@
             return iconSpan;
         }
 
-        // ==================== 数据定义与初始化 ====================
+        // ==================== 数据定义与初始化（其余不变） ====================
         const defaultData = {
             tabs: [ { id: uid(), name: '日常', categories: [
                 { id: uid(), name: '社交', links: [ { id: uid(), name: '爱达杂货铺', url: 'https://aidazahuopu.com' }, { id: uid(), name: '今日热榜', url: 'https://tophub.today' }, { id: uid(), name: 'Spotify', url: 'https://open.spotify.com' }, { id: uid(), name: '微博', url: 'https://weibo.com' }, { id: uid(), name: 'Yandex', url: 'https://yandex.com' } ] },
@@ -393,7 +453,6 @@
             }
         }
         function createLinkCard(cat, link) {
-            // ✅ 用 <a> 代替 <div>，浏览器原生处理中键/Ctrl+点击/右键菜单
             const card = document.createElement('a');
             card.className = 'link-card';
             card.dataset.linkId = link.id;
@@ -408,11 +467,9 @@
             card.appendChild(createIconElement(link));
             const nameSpan = document.createElement('span'); nameSpan.className = 'link-name'; nameSpan.textContent = link.name; card.appendChild(nameSpan);
             card.addEventListener('click', (e) => {
-                if (editMode) { e.preventDefault(); return; } // 编辑模式禁止跳转
+                if (editMode) { e.preventDefault(); return; }
                 if (!link.url || link.url === '#') { e.preventDefault(); alert('该链接尚未配置有效网址，请编辑后使用。'); }
-                // 正常模式：<a> 原生处理跳转，无需 window.open
             });
-            // 编辑模式拖拽时防止浏览器触发 <a> 的默认拖链接行为
             card.addEventListener('dragstart', (e) => {
                 if (!editMode) e.preventDefault();
             });
@@ -459,7 +516,7 @@
             return card;
         }
 
-        // ==================== Modal 弹窗 ====================
+        // ==================== Modal 弹窗（不变） ====================
         let currentModalCallback = null;
         function openModal(title, defaultValue, callback, isLinkMode = false) {
             const modal = document.getElementById('modal');
@@ -550,7 +607,7 @@
         function exportConfig() { const blob = new Blob([JSON.stringify(appData, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `startpage_backup_${new Date().toISOString().slice(0,10)}.json`; a.click(); }
         function importConfig(file) { const reader = new FileReader(); reader.onload = (e) => { try { const data = JSON.parse(e.target.result); if (data.tabs && Array.isArray(data.tabs)) { appData = data; saveData(); render(); alert('配置导入成功！'); } else alert('无效的配置文件'); } catch (ex) { alert('解析失败'); } }; reader.readAsText(file); }
 
-        // ==================== 键盘快捷键 ====================
+        // ==================== 键盘快捷键（不变） ====================
         document.addEventListener('keydown', (e) => {
             const tag = document.activeElement?.tagName?.toLowerCase();
             const inInput = ['input','textarea','select'].includes(tag);

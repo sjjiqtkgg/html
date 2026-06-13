@@ -478,6 +478,8 @@
                 });
             }
         }
+
+        // ==================== 创建链接卡片（含修复） ====================
         function createLinkCard(cat, link) {
             const card = document.createElement('a');
             card.className = 'link-card';
@@ -493,13 +495,13 @@
             card.appendChild(createIconElement(link));
             const nameSpan = document.createElement('span'); nameSpan.className = 'link-name'; nameSpan.textContent = link.name; card.appendChild(nameSpan);
             
-            // 左键点击：编辑模式下禁止跳转，非编辑模式正常打开
+            // 左键点击：编辑模式下禁止跳转
             card.addEventListener('click', (e) => {
                 if (editMode) { e.preventDefault(); return; }
                 if (!link.url || link.url === '#') { e.preventDefault(); alert('该链接尚未配置有效网址，请编辑后使用。'); }
             });
 
-            // 【修复】中键点击（auxclick）在编辑模式下也禁止打开新标签
+            // 中键点击（auxclick）在编辑模式下也禁止打开新标签
             card.addEventListener('auxclick', (e) => {
                 if (editMode) e.preventDefault();
             });
@@ -512,7 +514,8 @@
                 const actions = document.createElement('div'); actions.className = 'link-card-actions';
                 const editBtn = document.createElement('button'); editBtn.textContent = '✎'; 
                 editBtn.addEventListener('click', (e) => { 
-                    e.stopPropagation(); 
+                    e.preventDefault();       // 阻止 <a> 的默认跳转
+                    e.stopPropagation();      // 阻止事件冒泡
                     openLinkModal(link, (newName, newUrl) => { 
                         const currentTab = appData.tabs.find(t => t.id === appData.activeTabId);
                         const latestCat = currentTab?.categories.find(c => c.id === cat.id);
@@ -534,7 +537,8 @@
                 });
                 const delBtn = document.createElement('button'); delBtn.textContent = '✖'; 
                 delBtn.addEventListener('click', (e) => { 
-                    e.stopPropagation(); 
+                    e.preventDefault();       // 阻止 <a> 的默认跳转
+                    e.stopPropagation();      // 阻止事件冒泡
                     if (confirm(`删除链接"${link.name}"？`)) { 
                         const currentTab = appData.tabs.find(t => t.id === appData.activeTabId);
                         const latestCat = currentTab?.categories.find(c => c.id === cat.id);

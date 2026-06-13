@@ -4,11 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>导航网站</title>
-    <svg width="24" height="24" viewBox="0 0 576 512" fill="rgb(116, 192, 252)" xmlns="http://www.w3.org/2000/svg">
-  <path d="M575.8 255.5C575.8 273.5 560.8 287.6 543.8 287.6H511.8V448.1C511.8 479.5 486.6 504.1 455.8 504.1H383.8C366.6 504.1 351.8 489.3 351.8 472.1V352H223.8V472.1C223.8 489.3 209 504.1 191.8 504.1H127.8C96.4 504.1 71.8 479.5 71.8 448.1V287.6H39.8C22.8 287.6 7.8 273.5 7.8 255.5C7.8 246.5 11.4 237.5 17.4 231.5L273.4 17.5C280.4 10.5 289.4 6.5 297.8 6.5C306.2 6.5 315.2 10.5 322.2 17.5L558.4 231.5C564.4 237.5 567.8 246.5 567.8 255.5H575.8Z"/>
-</svg>
-    <!-- 预连接 Worker，减少首次请求延迟 -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='none' stroke='%234a90d9' stroke-width='12'/%3E%3Ccircle cx='50' cy='50' r='22' fill='%234a90d9'/%3E%3C/svg%3E">
     <link rel="preconnect" href="https://6657930.kdns.fr" crossorigin>
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -55,6 +54,7 @@
         .category-ghost { opacity: 0.4; outline: 2px dashed #888; outline-offset: 4px; border-radius: 8px; }
         .link-icon { width: 22px; height: 22px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; overflow: hidden; }
         .link-icon img { width: 100%; height: 100%; object-fit: contain; display: block; }
+        .link-icon i { font-size: 16px; }
         .link-name { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .link-card-actions { display: none; gap: 2px; margin-left: 4px; }
         body.edit-mode .link-card-actions { display: flex; }
@@ -183,92 +183,15 @@
             return null;
         }
 
-        // ==================== 图标缓存模块（整合优化版） ====================
-        const WORKER_URL = 'https://6657930.kdns.fr';
-        const ICON_CACHE_PREFIX = 'icon_cache_';
-        const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
-
-        function getCachedIcon(domain) {
-            try {
-                const raw = localStorage.getItem(ICON_CACHE_PREFIX + domain);
-                if (!raw) return null;
-                const data = JSON.parse(raw);
-                if (Date.now() - data.timestamp < ONE_YEAR_MS) {
-                    return data.base64;
-                }
-                localStorage.removeItem(ICON_CACHE_PREFIX + domain);
-            } catch (e) {}
-            return null;
-        }
-
-        function setCachedIcon(domain, base64) {
-            const payload = { base64, timestamp: Date.now() };
-            try {
-                localStorage.setItem(ICON_CACHE_PREFIX + domain, JSON.stringify(payload));
-            } catch (e) {
-                if (e.name === 'QuotaExceededError') {
-                    // 存储满时清除所有图标缓存后重试
-                    for (let i = localStorage.length - 1; i >= 0; i--) {
-                        const key = localStorage.key(i);
-                        if (key.startsWith(ICON_CACHE_PREFIX)) localStorage.removeItem(key);
-                    }
-                    try { localStorage.setItem(ICON_CACHE_PREFIX + domain, JSON.stringify(payload)); } catch (e2) {}
-                }
-            }
-        }
-
+        // ==================== 图标生成（全部替换为房子图标） ====================
         function createIconElement(link) {
             const iconSpan = document.createElement('span');
             iconSpan.className = 'link-icon';
-            const firstChar = link.name.charAt(0).toUpperCase();
-            const FAV_COLORS = ['#3b82f6','#8b5cf6','#06b6d4','#22c55e','#f97316','#ec4899','#ef4444','#0ea5e9'];
-            let domain = '', validUrl = false;
-            try { const u = new URL(link.url); domain = u.hostname; validUrl = true; } catch {}
-
-            function showLetter() {
-                let ci = (domain + link.name).charCodeAt(0) % FAV_COLORS.length;
-                iconSpan.style.cssText = `background:${FAV_COLORS[ci]};color:#fff;font-size:12px;font-weight:700;`;
-                iconSpan.textContent = firstChar;
-            }
-
-            if (!validUrl || !domain || link.url === '#') { showLetter(); return iconSpan; }
-
-            // 尝试从本地缓存读取
-            const cached = getCachedIcon(domain);
-            if (cached) {
-                const img = document.createElement('img');
-                img.src = cached;
-                img.onerror = function () { img.remove(); showLetter(); };
-                iconSpan.appendChild(img);
-                return iconSpan;
-            }
-
-            // 无缓存，请求 Worker
-            const img = document.createElement('img');
-            img.src = `${WORKER_URL}/?domain=${encodeURIComponent(domain)}`;
-
-            img.onload = function () {
-                // 成功加载，转为 base64 缓存（限制最大尺寸节省空间）
-                try {
-                    const canvas = document.createElement('canvas');
-                    const size = Math.min(this.naturalWidth || 32, 64);
-                    canvas.width = size;
-                    canvas.height = size;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(this, 0, 0, size, size);
-                    const base64 = canvas.toDataURL('image/png');
-                    setCachedIcon(domain, base64);
-                } catch (e) {
-                    // CORS 问题导致无法转 base64，静默降级，图片仍正常显示
-                }
-            };
-
-            img.onerror = function () {
-                img.remove();
-                showLetter(); // 网络错误时才回退为字母
-            };
-
-            iconSpan.appendChild(img);
+            // 直接使用指定的房子图标
+            const i = document.createElement('i');
+            i.className = 'fa-solid fa-house';
+            i.style.cssText = 'color: rgb(116, 192, 252); font-size: 16px;';
+            iconSpan.appendChild(i);
             return iconSpan;
         }
 

@@ -4,10 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>导航网站</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='none' stroke='%234a90d9' stroke-width='12'/%3E%3Ccircle cx='50' cy='50' r='22' fill='%234a90d9'/%3E%3C/svg%3E">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 576 512'%3E%3Cpath fill='%2374c0fc' d='M575.8 255.5c0 18-15 32.1-32 32.1h-32l.7 160.2c0 2.7-.2 5.4-.5 8.1V472c0 22.1-17.9 40-40 40H456c-1.1 0-2.2 0-3.3-.1-1.4.1-2.8.1-4.2.1H416 392c-22.1 0-40-17.9-40-40V360c0-.9 0-1.9.1-2.8v-69.7H223.9V360c0 .9 0 1.9.1 2.8V472c0 22.1-17.9 40-40 40H160 128.1c-1.5 0-2.9 0-4.3-.1-1.1.1-2.2.1-3.3.1H104c-22.1 0-40-17.9-40-40V360c0-.9 0-1.9.1-2.8V287.6H32c-18 0-32-14-32-32.1 0-9 3-17 10-24L266.4 8c7-7 15-8 22-8s15 2 21 7L564.8 231.5c8 7 12 15 11 24z'/%3E%3C/svg%3E">
     <link rel="preconnect" href="https://6657930.kdns.fr" crossorigin>
-    <!-- Font Awesome 6 -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -54,7 +52,6 @@
         .category-ghost { opacity: 0.4; outline: 2px dashed #888; outline-offset: 4px; border-radius: 8px; }
         .link-icon { width: 22px; height: 22px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; overflow: hidden; }
         .link-icon img { width: 100%; height: 100%; object-fit: contain; display: block; }
-        .link-icon i { font-size: 16px; }
         .link-name { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .link-card-actions { display: none; gap: 2px; margin-left: 4px; }
         body.edit-mode .link-card-actions { display: flex; }
@@ -183,19 +180,90 @@
             return null;
         }
 
-        // ==================== 图标生成（全部替换为房子图标） ====================
+        // ==================== 图标缓存模块 ====================
+        const WORKER_URL = 'https://6657930.kdns.fr';
+        const ICON_CACHE_PREFIX = 'icon_cache_';
+        const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
+
+        function getCachedIcon(domain) {
+            try {
+                const raw = localStorage.getItem(ICON_CACHE_PREFIX + domain);
+                if (!raw) return null;
+                const data = JSON.parse(raw);
+                if (Date.now() - data.timestamp < ONE_YEAR_MS) {
+                    return data.base64;
+                }
+                localStorage.removeItem(ICON_CACHE_PREFIX + domain);
+            } catch (e) {}
+            return null;
+        }
+
+        function setCachedIcon(domain, base64) {
+            const payload = { base64, timestamp: Date.now() };
+            try {
+                localStorage.setItem(ICON_CACHE_PREFIX + domain, JSON.stringify(payload));
+            } catch (e) {
+                if (e.name === 'QuotaExceededError') {
+                    for (let i = localStorage.length - 1; i >= 0; i--) {
+                        const key = localStorage.key(i);
+                        if (key.startsWith(ICON_CACHE_PREFIX)) localStorage.removeItem(key);
+                    }
+                    try { localStorage.setItem(ICON_CACHE_PREFIX + domain, JSON.stringify(payload)); } catch (e2) {}
+                }
+            }
+        }
+
         function createIconElement(link) {
             const iconSpan = document.createElement('span');
             iconSpan.className = 'link-icon';
-            // 直接使用指定的房子图标
-            const i = document.createElement('i');
-            i.className = 'fa-solid fa-house';
-            i.style.cssText = 'color: rgb(116, 192, 252); font-size: 16px;';
-            iconSpan.appendChild(i);
+            const firstChar = link.name.charAt(0).toUpperCase();
+            const FAV_COLORS = ['#3b82f6','#8b5cf6','#06b6d4','#22c55e','#f97316','#ec4899','#ef4444','#0ea5e9'];
+            let domain = '', validUrl = false;
+            try { const u = new URL(link.url); domain = u.hostname; validUrl = true; } catch {}
+
+            function showLetter() {
+                let ci = (domain + link.name).charCodeAt(0) % FAV_COLORS.length;
+                iconSpan.style.cssText = `background:${FAV_COLORS[ci]};color:#fff;font-size:12px;font-weight:700;`;
+                iconSpan.textContent = firstChar;
+            }
+
+            if (!validUrl || !domain || link.url === '#') { showLetter(); return iconSpan; }
+
+            const cached = getCachedIcon(domain);
+            if (cached) {
+                const img = document.createElement('img');
+                img.src = cached;
+                img.onerror = function () { img.remove(); showLetter(); };
+                iconSpan.appendChild(img);
+                return iconSpan;
+            }
+
+            const img = document.createElement('img');
+            img.src = `${WORKER_URL}/?domain=${encodeURIComponent(domain)}`;
+
+            img.onload = function () {
+                try {
+                    const canvas = document.createElement('canvas');
+                    const size = Math.min(this.naturalWidth || 32, 64);
+                    canvas.width = size;
+                    canvas.height = size;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(this, 0, 0, size, size);
+                    const base64 = canvas.toDataURL('image/png');
+                    setCachedIcon(domain, base64);
+                } catch (e) {}
+            };
+
+            img.onerror = function () {
+                img.remove();
+                showLetter();
+            };
+
+            iconSpan.appendChild(img);
             return iconSpan;
         }
 
-        // ==================== 数据定义与初始化 ====================
+        // ==================== 数据与渲染 ====================
         const defaultData = {
             tabs: [ { id: uid(), name: '日常', categories: [
                 { id: uid(), name: '社交', links: [ { id: uid(), name: '爱达杂货铺', url: 'https://aidazahuopu.com' }, { id: uid(), name: '今日热榜', url: 'https://tophub.today' }, { id: uid(), name: 'Spotify', url: 'https://open.spotify.com' }, { id: uid(), name: '微博', url: 'https://weibo.com' }, { id: uid(), name: 'Yandex', url: 'https://yandex.com' } ] },

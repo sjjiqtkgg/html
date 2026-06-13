@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>导航网站</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='none' stroke='%234a90d9' stroke-width='12'/%3E%3Ccircle cx='50' cy='50' r='22' fill='%234a90d9'/%3E%3C/svg%3E">
+    <!-- 预连接 Worker，减少首次请求延迟 -->
     <link rel="preconnect" href="https://6657930.kdns.fr" crossorigin>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
     <style>
@@ -180,7 +181,7 @@
             return null;
         }
 
-        // ==================== 图标缓存模块 ====================
+        // ==================== 图标缓存模块（整合优化版） ====================
         const WORKER_URL = 'https://6657930.kdns.fr';
         const ICON_CACHE_PREFIX = 'icon_cache_';
         const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
@@ -204,7 +205,7 @@
                 localStorage.setItem(ICON_CACHE_PREFIX + domain, JSON.stringify(payload));
             } catch (e) {
                 if (e.name === 'QuotaExceededError') {
-                    // 清除所有图标缓存后重试
+                    // 存储满时清除所有图标缓存后重试
                     for (let i = localStorage.length - 1; i >= 0; i--) {
                         const key = localStorage.key(i);
                         if (key.startsWith(ICON_CACHE_PREFIX)) localStorage.removeItem(key);
@@ -230,7 +231,7 @@
 
             if (!validUrl || !domain || link.url === '#') { showLetter(); return iconSpan; }
 
-            // 先读取缓存
+            // 尝试从本地缓存读取
             const cached = getCachedIcon(domain);
             if (cached) {
                 const img = document.createElement('img');
@@ -240,12 +241,12 @@
                 return iconSpan;
             }
 
-            // 网络请求
+            // 无缓存，请求 Worker
             const img = document.createElement('img');
             img.src = `${WORKER_URL}/?domain=${encodeURIComponent(domain)}`;
 
             img.onload = function () {
-                // 成功加载后缓存为 base64（限制尺寸节省空间）
+                // 成功加载，转为 base64 缓存（限制最大尺寸节省空间）
                 try {
                     const canvas = document.createElement('canvas');
                     const size = Math.min(this.naturalWidth || 32, 64);
@@ -256,13 +257,13 @@
                     const base64 = canvas.toDataURL('image/png');
                     setCachedIcon(domain, base64);
                 } catch (e) {
-                    // CORS 等原因导致无法转 base64，静默降级（图片仍正常显示）
+                    // CORS 问题导致无法转 base64，静默降级，图片仍正常显示
                 }
             };
 
             img.onerror = function () {
                 img.remove();
-                showLetter();
+                showLetter(); // 网络错误时才回退为字母
             };
 
             iconSpan.appendChild(img);
@@ -602,7 +603,7 @@
         function exportConfig() { const blob = new Blob([JSON.stringify(appData, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `startpage_backup_${new Date().toISOString().slice(0,10)}.json`; a.click(); }
         function importConfig(file) { const reader = new FileReader(); reader.onload = (e) => { try { const data = JSON.parse(e.target.result); if (data.tabs && Array.isArray(data.tabs)) { appData = data; saveData(); render(); alert('配置导入成功！'); } else alert('无效的配置文件'); } catch (ex) { alert('解析失败'); } }; reader.readAsText(file); }
 
-        // ==================== 键盘快捷键 ====================
+        // 键盘快捷键
         document.addEventListener('keydown', (e) => {
             const tag = document.activeElement?.tagName?.toLowerCase();
             const inInput = ['input','textarea','select'].includes(tag);
@@ -619,7 +620,7 @@
             if ((e.key === 'e' || e.key === 'E') && !e.ctrlKey && !e.metaKey) { toggleEditMode(); }
         });
 
-        // ==================== 初始化 ====================
+        // 初始化
         function init() {
             loadData();
             if (localStorage.getItem('startpage_theme') === 'dark') { isDark = true; document.body.classList.add('dark'); }

@@ -138,7 +138,7 @@
     <script>
         // ==================== 图标缓存模块 ====================
         const ICON_CACHE_PREFIX = 'favicon_cache_';
-        const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000; // 1 年（毫秒）
+        const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000; // 1 年
 
         function getCachedIcon(domain) {
             try {
@@ -148,7 +148,6 @@
                 if (Date.now() - data.timestamp < ONE_YEAR_MS) {
                     return data.base64;
                 }
-                // 过期则删除
                 localStorage.removeItem(ICON_CACHE_PREFIX + domain);
             } catch (e) {}
             return null;
@@ -156,19 +155,14 @@
 
         function setCachedIcon(domain, base64) {
             try {
-                const data = {
-                    base64: base64,
-                    timestamp: Date.now()
-                };
+                const data = { base64, timestamp: Date.now() };
                 localStorage.setItem(ICON_CACHE_PREFIX + domain, JSON.stringify(data));
             } catch (e) {
-                // 存储空间满时清除旧缓存，简单处理：清除所有图标缓存
                 if (e.name === 'QuotaExceededError') {
+                    // 清除所有图标缓存
                     for (let i = localStorage.length - 1; i >= 0; i--) {
                         const key = localStorage.key(i);
-                        if (key.startsWith(ICON_CACHE_PREFIX)) {
-                            localStorage.removeItem(key);
-                        }
+                        if (key.startsWith(ICON_CACHE_PREFIX)) localStorage.removeItem(key);
                     }
                     try { localStorage.setItem(ICON_CACHE_PREFIX + domain, JSON.stringify(data)); } catch (e2) {}
                 }
@@ -177,6 +171,7 @@
 
         // ==================== 全局工具函数 ====================
         function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
         function fetchTitleFromUrl(url) {
             try {
                 const host = new URL(url).hostname.replace(/^www\./i, '');
@@ -213,14 +208,14 @@
                         const title = m[1].trim().split(/\s*[|\-–·—\/\\]\s*/).shift().trim().slice(0, 40);
                         if (title) return title;
                     }
-                } catch(e) { }
+                } catch(e) {}
             }
             return null;
         }
 
-        const WORKER_URL = 'https://6657930.kdns.fr'; // 你的 Worker 地址
+        const WORKER_URL = 'https://6657930.kdns.fr';
 
-        // 修改后的图标创建函数，包含本地缓存逻辑
+        // 创建图标元素（含缓存，移除尺寸校验）
         function createIconElement(link) {
             const iconSpan = document.createElement('span');
             iconSpan.className = 'link-icon';
@@ -237,10 +232,9 @@
 
             if (!validUrl || !domain || link.url === '#') { showLetter(); return iconSpan; }
 
-            // 先检查缓存
+            // 先尝试从缓存读取
             const cached = getCachedIcon(domain);
             if (cached) {
-                // 命中缓存，直接使用 base64 显示
                 const img = document.createElement('img');
                 img.src = cached;
                 img.onerror = function () { img.remove(); showLetter(); };
@@ -248,33 +242,33 @@
                 return iconSpan;
             }
 
-            // 没有缓存，请求 Worker
+            // 无缓存则请求 Worker
             const img = document.createElement('img');
             img.src = `${WORKER_URL}/?domain=${encodeURIComponent(domain)}`;
 
             img.onload = function () {
-                if (this.naturalWidth <= 16 && this.naturalHeight <= 16) {
-                    img.remove(); showLetter();
-                } else {
-                    // 将加载成功的图片转为 base64 并缓存
-                    try {
-                        const canvas = document.createElement('canvas');
-                        canvas.width = this.naturalWidth;
-                        canvas.height = this.naturalHeight;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(this, 0, 0);
-                        const base64 = canvas.toDataURL('image/png');
-                        setCachedIcon(domain, base64);
-                    } catch (e) { /* 跨域等异常不缓存，但 Worker 已设 CORS，一般没问题 */ }
-                }
+                // 完全移除尺寸校验，直接缓存并显示
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = this.naturalWidth;
+                    canvas.height = this.naturalHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(this, 0, 0);
+                    const base64 = canvas.toDataURL('image/png');
+                    setCachedIcon(domain, base64);
+                } catch (e) {}
             };
-            img.onerror = function () { img.remove(); showLetter(); };
+
+            img.onerror = function () {
+                img.remove();
+                showLetter();
+            };
 
             iconSpan.appendChild(img);
             return iconSpan;
         }
 
-        // ==================== 数据定义与初始化（其余不变） ====================
+        // ==================== 数据与渲染 ====================
         const defaultData = {
             tabs: [ { id: uid(), name: '日常', categories: [
                 { id: uid(), name: '社交', links: [ { id: uid(), name: '爱达杂货铺', url: 'https://aidazahuopu.com' }, { id: uid(), name: '今日热榜', url: 'https://tophub.today' }, { id: uid(), name: 'Spotify', url: 'https://open.spotify.com' }, { id: uid(), name: '微博', url: 'https://weibo.com' }, { id: uid(), name: 'Yandex', url: 'https://yandex.com' } ] },
@@ -516,7 +510,7 @@
             return card;
         }
 
-        // ==================== Modal 弹窗（不变） ====================
+        // ==================== Modal 弹窗 ====================
         let currentModalCallback = null;
         function openModal(title, defaultValue, callback, isLinkMode = false) {
             const modal = document.getElementById('modal');
@@ -607,7 +601,7 @@
         function exportConfig() { const blob = new Blob([JSON.stringify(appData, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `startpage_backup_${new Date().toISOString().slice(0,10)}.json`; a.click(); }
         function importConfig(file) { const reader = new FileReader(); reader.onload = (e) => { try { const data = JSON.parse(e.target.result); if (data.tabs && Array.isArray(data.tabs)) { appData = data; saveData(); render(); alert('配置导入成功！'); } else alert('无效的配置文件'); } catch (ex) { alert('解析失败'); } }; reader.readAsText(file); }
 
-        // ==================== 键盘快捷键（不变） ====================
+        // 键盘快捷键
         document.addEventListener('keydown', (e) => {
             const tag = document.activeElement?.tagName?.toLowerCase();
             const inInput = ['input','textarea','select'].includes(tag);
@@ -624,7 +618,7 @@
             if ((e.key === 'e' || e.key === 'E') && !e.ctrlKey && !e.metaKey) { toggleEditMode(); }
         });
 
-        // ==================== 初始化 ====================
+        // 初始化
         function init() {
             loadData();
             if (localStorage.getItem('startpage_theme') === 'dark') { isDark = true; document.body.classList.add('dark'); }

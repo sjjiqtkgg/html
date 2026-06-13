@@ -213,6 +213,28 @@
             }
         }
 
+        // ==================== 失败域名缓存（避免重复请求404） ====================
+        const FAILED_CACHE_PREFIX = 'icon_failed_';
+        const FAILED_CACHE_DURATION = 60 * 60 * 1000; // 1小时
+
+        function isFailedCached(domain) {
+            try {
+                const raw = localStorage.getItem(FAILED_CACHE_PREFIX + domain);
+                if (!raw) return false;
+                const data = JSON.parse(raw);
+                if (Date.now() - data.timestamp < FAILED_CACHE_DURATION) return true;
+                localStorage.removeItem(FAILED_CACHE_PREFIX + domain);
+            } catch(e) {}
+            return false;
+        }
+
+        function setFailedCache(domain) {
+            try {
+                localStorage.setItem(FAILED_CACHE_PREFIX + domain, JSON.stringify({ timestamp: Date.now() }));
+            } catch(e) {}
+        }
+
+        // ==================== 创建图标元素 ====================
         function createIconElement(link) {
             const iconSpan = document.createElement('span');
             iconSpan.className = 'link-icon';
@@ -229,6 +251,13 @@
 
             if (!validUrl || !domain || link.url === '#') { showLetter(); return iconSpan; }
 
+            // 检查是否在“失败域名”缓存中，避免再次请求
+            if (isFailedCached(domain)) {
+                showLetter();
+                return iconSpan;
+            }
+
+            // 检查图标缓存
             const cached = getCachedIcon(domain);
             if (cached) {
                 const img = document.createElement('img');
@@ -238,6 +267,7 @@
                 return iconSpan;
             }
 
+            // 请求 Worker
             const img = document.createElement('img');
             img.src = `${WORKER_URL}/?domain=${encodeURIComponent(domain)}`;
 
@@ -255,6 +285,7 @@
             };
 
             img.onerror = function () {
+                setFailedCache(domain); // 标记该域名无法获取图标
                 img.remove();
                 showLetter();
             };
@@ -263,7 +294,7 @@
             return iconSpan;
         }
 
-        // ==================== 数据与渲染 ====================
+        // ==================== 数据定义与初始化 ====================
         const defaultData = {
             tabs: [ { id: uid(), name: '日常', categories: [
                 { id: uid(), name: '社交', links: [ { id: uid(), name: '爱达杂货铺', url: 'https://aidazahuopu.com' }, { id: uid(), name: '今日热榜', url: 'https://tophub.today' }, { id: uid(), name: 'Spotify', url: 'https://open.spotify.com' }, { id: uid(), name: '微博', url: 'https://weibo.com' }, { id: uid(), name: 'Yandex', url: 'https://yandex.com' } ] },
